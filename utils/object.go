@@ -37,27 +37,33 @@ func InitX() X {
 	return make(X)
 }
 
-// setR sets the value of r[l][j][k] in R.
-func (r R) setR(l, j, k int, value bool) {
-	if _, exists := r[l]; !exists {
-		r[l] = make(map[int]map[int]bool)
+// setX sets the number of instances for service s_j on server n_i
+func (x X) setX(i, j, instances int) {
+	if _, exists := x[i]; !exists {
+		x[i] = make(map[int]int)
 	}
-	if _, exists := r[l][j]; !exists {
-		r[l][j] = make(map[int]bool)
-	}
-	r[l][j][k] = value
+	x[i][j] = instances
 }
 
-// getR gets the value of r[l][j][k], defaulting to false if not set.
-func (r R) getR(l, j, k int) bool {
-	if _, exists := r[l]; exists {
-		if _, exists := r[l][j]; exists {
-			if val, exists := r[l][j][k]; exists {
-				return val
-			}
+// getX retrieves the number of instances for service s_j on server n_i, defaulting to 0
+func (x X) getX(i, j int) int {
+	if _, exists := x[i]; exists {
+		if val, exists := x[i][j]; exists {
+			return val
 		}
 	}
-	return false
+	return 0
+}
+
+// removeX deletes the mapping for a given server and service
+func (x X) removeX(i, j int) {
+	if _, exists := x[i]; exists {
+		delete(x[i], j)
+		// Clean up empty maps
+		if len(x[i]) == 0 {
+			delete(x, i)
+		}
+	}
 }
 
 /// ****** F ****** ///
@@ -162,8 +168,9 @@ func (a A) addApp(appID int, functions []Function) {
 }
 
 // addFunction adds a function to an existing application sequence
-func (a A) addFunction(appID, serviceID, functionID int) {
-	a[appID] = append(a[appID], Function{ServiceID: serviceID, FunctionID: functionID})
+func (a A) addFunction(appID int, f Function) {
+	// a[appID] = append(a[appID], Function{ServiceID: serviceID, FunctionID: functionID})
+	a[appID] = append(a[appID], f)
 }
 
 // getApp retrieves the function sequence for an application

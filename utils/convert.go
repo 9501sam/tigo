@@ -1,3 +1,3 @@
 package utils
 
-/// ****** get functions ****** ///
+/// ****** Get functions as a list ****** ///
