@@ -1,7 +1,7 @@
 package utils
 
 /// ****** R ****** ///
-type R map[int]map[int]map[int]bool
+type R map[int]map[int]map[int]bool // r[l][j][k] for appl jth ~ kth on clould
 
 func InitR() R {
 	return make(R)
@@ -28,6 +28,33 @@ func (r R) getR(l, j, k int) bool {
 		}
 	}
 	return false
+}
+
+/// ****** P ****** ///  TODO!!!
+// P represents the probability p_i^m for each application i and function m
+type P map[int]map[int]float64
+
+// InitP initializes an empty P structure
+func InitP() P {
+	return make(P)
+}
+
+// SetP sets the probability p_i^m for app i, function m
+func (p P) SetP(appID, m int, prob float64) {
+	if _, exists := p[appID]; !exists {
+		p[appID] = make(map[int]float64)
+	}
+	p[appID][m] = prob
+}
+
+// GetP retrieves the probability p_i^m, defaulting to 0.0 if not set
+func (p P) GetP(appID, m int) float64 {
+	if appMap, exists := p[appID]; exists {
+		if prob, exists := appMap[m]; exists {
+			return prob
+		}
+	}
+	return 0.0
 }
 
 /// ****** X ****** ///
@@ -188,4 +215,16 @@ func (a A) removeFunction(appID, index int) {
 	if _, exists := a[appID]; exists && index < len(a[appID]) {
 		a[appID] = append(a[appID][:index], a[appID][index+1:]...)
 	}
+}
+
+/// ****** U ****** ///
+// UserRequests represents the request count per node per application
+type UserRequests map[int]map[int]float64 // u[nodeID][appID] = number of requests for app appID on node nodeID
+
+/// ****** T ****** ///
+// TransmissionTimes represents the transmission & processing time per app's microservices
+type T map[int][]float64 // T[i] = list of response times between microservices in app i
+
+func (t T) initT() {
+
 }
