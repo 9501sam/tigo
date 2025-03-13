@@ -2,103 +2,130 @@ package main
 
 import (
 	"fmt"
-	"sort"
+	"math/rand"
+	"time"
 )
 
-// Solution represents a deployment scheme
-type Solution struct {
-	X    map[string]string // Deployment scheme
-	R    map[string]string // Cloud execution scheme
-	Cost float64           // Cost of the solution
+type Particle struct {
+	Solution     [][]int
+	Velocity     [][]float64
+	BestSolution [][]int
+	BestScore    float64
 }
 
-// initRouting initializes the routing scheme
-func initRouting() (map[string]string, float64) {
-	// Placeholder for initializing routing, can be adjusted based on requirements
-	return make(map[string]string), 0.0
+type DPSO struct {
+	Particles    []Particle
+	BestSolution [][]int
+	BestScore    float64
+	NumParticles int
+	NumNodes     int
+	NumServices  int
+	MaxIter      int
 }
 
-// cloudExecSchemeImprove improves cloud execution scheme
-func cloudExecSchemeImprove(R map[string]string, budget float64, BS int) []Solution {
-	// Placeholder for greedy optimization in cloud execution
-	// This should generate candidate solutions based on available budget
-	candidates := []Solution{}
+func NewDPSO(numParticles, numNodes, numServices, maxIter int) *DPSO {
+	rand.Seed(time.Now().UnixNano())
+	particles := make([]Particle, numParticles)
+	bestSolution := make([][]int, numNodes)
+	for i := range bestSolution {
+		bestSolution[i] = make([]int, numServices)
+	}
+	bestScore := -1.0
 
-	// Example: Generating some mock solutions
-	for i := 0; i < BS; i++ {
-		newR := make(map[string]string)
-		for k, v := range R {
-			newR[k] = v
+	for i := range particles {
+		particles[i] = Particle{
+			Solution:     randomSolution(numNodes, numServices),
+			Velocity:     makeVelocity(numNodes, numServices),
+			BestSolution: make([][]int, numNodes), // 確保分配外層 slice
+			BestScore:    -1.0,
 		}
-		newR[fmt.Sprintf("Service_%d", i)] = "Optimized_Cloud_Node"
-		candidates = append(candidates, Solution{R: newR, Cost: budget - float64(i)})
+		for n := range particles[i].BestSolution { // 分配內層 slice
+			particles[i].BestSolution[n] = make([]int, numServices)
+		}
+		copySolution(particles[i].BestSolution, particles[i].Solution)
+		score := evaluate(particles[i].Solution)
+		particles[i].BestScore = score
+		if score > bestScore {
+			bestScore = score
+			copySolution(bestSolution, particles[i].Solution)
+
+		}
 	}
 
-	// Sorting by cost efficiency (mock logic)
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].Cost < candidates[j].Cost
-	})
-
-	return candidates
-}
-
-// edgePlacement optimizes microservice deployment at the edge
-func edgePlacement(R map[string]string) map[string]string {
-	// Placeholder for optimizing edge deployment
-	X := make(map[string]string)
-	for service := range R {
-		X[service] = "Optimized_Edge_Node"
+	return &DPSO{
+		Particles:    particles,
+		BestSolution: bestSolution,
+		BestScore:    bestScore,
+		NumParticles: numParticles,
+		NumNodes:     numNodes,
+		NumServices:  numServices,
+		MaxIter:      maxIter,
 	}
-	return X
 }
 
-// TwoStageIteratedGreedyOptimization implements the TIGO algorithm
-func TwoStageIteratedGreedyOptimization(BS int) Solution {
-	X := make(map[string]string)
-	R, cost := initRouting()
-	tempSls := []Solution{{X: X, R: R, Cost: cost}}
-	SLs := []Solution{}
+func (dpso *DPSO) Optimize() {
+	w, c1, c2 := 0.5, 1.5, 1.5
 
-	for {
-		nextSls := []Solution{}
-		for _, sl := range tempSls {
-			candidates := cloudExecSchemeImprove(sl.R, 100-sl.Cost, BS) // 100 is a sample budget
-			if len(candidates) == 0 {
-				SLs = append(SLs, sl)
-			} else {
-				for _, candidate := range candidates {
-					newX := edgePlacement(candidate.R)
-					nextSls = append(nextSls, Solution{X: newX, R: candidate.R, Cost: candidate.Cost})
+	for iter := 0; iter < dpso.MaxIter; iter++ {
+		for i := range dpso.Particles {
+			p := &dpso.Particles[i]
+			for n := 0; n < dpso.NumNodes; n++ {
+				for s := 0; s < dpso.NumServices; s++ {
+					r1, r2 := rand.Float64(), rand.Float64()
+					p.Velocity[n][s] = w*p.Velocity[n][s] + c1*r1*float64(p.BestSolution[n][s]-p.Solution[n][s]) + c2*r2*float64(dpso.BestSolution[n][s]-p.Solution[n][s])
+					p.Solution[n][s] = int(sigmoid(p.Velocity[n][s])*9) + 1
 				}
 			}
+			score := evaluate(p.Solution)
+			if score > p.BestScore {
+				p.BestScore = score
+				copySolution(p.BestSolution, p.Solution)
+			}
+			if score > dpso.BestScore {
+				dpso.BestScore = score
+				copySolution(dpso.BestSolution, p.Solution)
+			}
 		}
-		if len(nextSls) == 0 {
-			break
-		}
-		sort.Slice(nextSls, func(i, j int) bool {
-			return nextSls[i].Cost < nextSls[j].Cost
-		})
-		tempSls = nextSls[:min(len(nextSls), BS)]
+		fmt.Printf("Iteration %d: Best Score = %f\n", iter, dpso.BestScore)
 	}
-
-	sort.Slice(SLs, func(i, j int) bool {
-		return SLs[i].Cost < SLs[j].Cost
-	})
-
-	return SLs[0]
 }
 
-// min function for slicing safely
-func min(a, b int) int {
-	if a < b {
-		return a
+func randomSolution(numNodes, numServices int) [][]int {
+	solution := make([][]int, numNodes)
+	for i := range solution {
+		solution[i] = make([]int, numServices)
+		for j := range solution[i] {
+			solution[i][j] = rand.Intn(10) + 1
+		}
 	}
-	return b
+	return solution
 }
 
-// Main function
+func makeVelocity(numNodes, numServices int) [][]float64 {
+	velocity := make([][]float64, numNodes)
+	for i := range velocity {
+		velocity[i] = make([]float64, numServices)
+	}
+	return velocity
+}
+
+func copySolution(dst, src [][]int) {
+	for i := range src {
+		copy(dst[i], src[i])
+	}
+}
+
+func evaluate(solution [][]int) float64 {
+	return 0.0 // Placeholder for actual evaluation function
+}
+
+func sigmoid(x float64) float64 {
+	return 1 / (1 + 1/float64(1+rand.ExpFloat64()))
+}
+
 func main() {
-	BS := 1 // Branch search size
-	bestSolution := TwoStageIteratedGreedyOptimization(BS)
-	fmt.Println("Best Solution Found:", bestSolution)
+	dpso := NewDPSO(30, 3, 11, 1000) // 3 nodes, 11 services, 50 iterations
+	dpso.Optimize()
+
+	fmt.Println("Best Solution:", dpso.BestSolution, "Score:", dpso.BestScore)
 }
