@@ -21,10 +21,9 @@ var services = []string{
 	"redis-cart", "shippingservice",
 }
 
-var config *rest.Config
-var err error
-
 func main() {
+	var config *rest.Config
+	var err error
 
 	// 判斷是否在 Kubernetes 內部運行
 	if _, exists := os.LookupEnv("KUBERNETES_SERVICE_HOST"); exists {

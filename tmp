@@ -1,0 +1,5 @@
+adservice, cartservice, checkoutservice, currencyservice, emailservice, frontend, paymentservice, productcatalogservice, recommendationservice, redis-cart, shippingservice
+
+adservice, cartservice, checkoutservice, currencyservice, emailservice, frontend, paymentservice, productcatalogservice, recommendationservice, redis-cart, shippingservice
+
+checkoutservice, currencyservice, emailservice, paymentservice, productcatalogservice, recommendationservice
