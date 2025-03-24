@@ -9,8 +9,9 @@ import (
 )
 
 var services = []string{
-	"cartservice", "checkoutservice", "currencyservice", "emailservice", "frontend",
-	"productcatalogservice", "paymentservice", "recommendationservice", "shippingservice",
+	// "cartservice", "checkoutservice", "currencyservice", "emailservice", "frontend",
+	// "productcatalogservice", "paymentservice", "recommendationservice", "shippingservice",
+	"frontend",
 }
 
 const jaegerBaseURL = "http://localhost:16686/api/traces?service=%s&start=%d&end=%d" // Jaeger API URL
@@ -52,7 +53,7 @@ func main() {
 	start := time.Now().Add(-10*time.Minute).UnixNano() / 1000 // 10 分鐘前
 	end := time.Now().UnixNano() / 1000                        // 現在時間
 
-	paths := make(map[string]bool)
+	paths := make(map[string]int)
 
 	for _, service := range services {
 		traces, err := fetchTraces(service, start, end)
@@ -66,12 +67,12 @@ func main() {
 			for _, span := range trace.Spans {
 				path += fmt.Sprintf(" -> %s(%s)", span.OperationName, span.Process.ServiceName)
 			}
-			paths[path] = true
+			paths[path]++
 		}
 	}
 
-	fmt.Println("Unique Paths:")
-	for path := range paths {
-		fmt.Println(path)
+	fmt.Println("Path Counts:")
+	for path, count := range paths {
+		fmt.Printf("%s : %d\n", path, count)
 	}
 }
