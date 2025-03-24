@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"net/url"
+	"os"
 )
 
 const jaegerBaseURL = "http://localhost:16686/api"
@@ -76,7 +79,9 @@ func getOperations(service string) ([]string, error) {
 
 // 計算某個 API operation 的 self duration
 func getOperationSelfDuration(service, operation string) (int64, error) {
-	url := fmt.Sprintf("%s/traces?service=%s&operation=%s&limit=10", jaegerBaseURL, service, operation)
+	// url := fmt.Sprintf("%s/traces?service=%s&operation=%s&limit=10", jaegerBaseURL, service, operation)
+	encodedOperation := url.QueryEscape(operation)
+	url := fmt.Sprintf("%s/traces?service=%s&operation=%s&limit=10", jaegerBaseURL, service, encodedOperation)
 	resp, err := http.Get(url)
 	if err != nil {
 		return 0, fmt.Errorf("error fetching traces: %v", err)
@@ -138,7 +143,11 @@ func main() {
 		return
 	}
 
+	selfDurations := make(map[string]map[string]int64)
+	selfDurations["redis"] = make(map[string]int64)
 	for _, service := range services {
+
+		selfDurations[service] = make(map[string]int64)
 		operations, err := getOperations(service)
 		if err != nil {
 			fmt.Printf("Error getting operations for %s: %v\n", service, err)
@@ -151,7 +160,31 @@ func main() {
 				fmt.Printf("Error getting self duration for %s/%s: %v\n", service, operation, err)
 				continue
 			}
-			fmt.Printf("Self Duration for %s/%s: %d µs\n", service, operation, selfDuration)
+
+			if operation == "RedisAddItem" || operation == "RedisEmptyCart" || operation == "RedisGetCart" {
+				selfDurations["redis"][operation] = selfDuration
+			} else {
+				selfDurations[service][operation] = selfDuration
+			}
+			// fmt.Printf("Self Duration for %s:%s %d µs\n", service, operation, selfDuration) 
 		}
+	}
+
+	// clean up the data
+	delete(selfDurations, "jaeger-all-in-one")
+
+	// print the selfDurations
+	jsonData, err := json.MarshalIndent(selfDurations, "", "  ")
+	if err != nil {
+		fmt.Println("Error marshaling to JSON:", err)
+		return
+	}
+	fmt.Println(string(jsonData))
+
+	// TODO: save jsonData to a file
+	err = os.WriteFile("self_durations.json", jsonData, 0644)
+	if err != nil {
+		log.Fatalf("Error writing JSON to file: %v", err)
+
 	}
 }
