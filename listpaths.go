@@ -5,9 +5,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
-const jaegerURL = "http://localhost:16686/api/traces?service=checkoutservice" // 替換為你的 Service 名稱
+var services = []string{
+	"cartservice", "checkoutservice", "currencyservice", "emailservice", "frontend",
+	"productcatalogservice", "paymentservice", "recommendationservice", "shippingservice",
+}
+
+const jaegerBaseURL = "http://localhost:16686/api/traces?service=%s&start=%d&end=%d" // Jaeger API URL
 
 type TraceData struct {
 	Data []struct {
@@ -21,42 +27,49 @@ type TraceData struct {
 	} `json:"data"`
 }
 
-func main() {
-	// 呼叫 Jaeger API 取得 Traces
-	resp, err := http.Get(jaegerURL)
+func fetchTraces(service string, start, end int64) (*TraceData, error) {
+	url := fmt.Sprintf(jaegerBaseURL, service, start, end)
+	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println("Error fetching traces:", err)
-		return
+		return nil, fmt.Errorf("error fetching traces for %s: %w", service, err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
-		return
+		return nil, fmt.Errorf("error reading response body for %s: %w", service, err)
 	}
 
-	// 解析 JSON
 	var traces TraceData
-	err = json.Unmarshal(body, &traces)
-	if err != nil {
-		fmt.Println("Error unmarshalling JSON:", err)
-		return
+	if err := json.Unmarshal(body, &traces); err != nil {
+		return nil, fmt.Errorf("error unmarshalling JSON for %s: %w", service, err)
 	}
 
-	// 建立不同 Request Path 的 Map
+	return &traces, nil
+}
+
+func main() {
+	start := time.Now().Add(-10*time.Minute).UnixNano() / 1000 // 10 分鐘前
+	end := time.Now().UnixNano() / 1000                        // 現在時間
+
 	paths := make(map[string]bool)
 
-	// 解析每個 Trace
-	for _, trace := range traces.Data {
-		var path string
-		for _, span := range trace.Spans {
-			path += fmt.Sprintf(" -> %s(%s)", span.OperationName, span.Process.ServiceName)
+	for _, service := range services {
+		traces, err := fetchTraces(service, start, end)
+		if err != nil {
+			fmt.Println(err)
+			continue
 		}
-		paths[path] = true
+
+		for _, trace := range traces.Data {
+			var path string
+			for _, span := range trace.Spans {
+				path += fmt.Sprintf(" -> %s(%s)", span.OperationName, span.Process.ServiceName)
+			}
+			paths[path] = true
+		}
 	}
 
-	// 輸出所有種類的 Path
 	fmt.Println("Unique Paths:")
 	for path := range paths {
 		fmt.Println(path)
