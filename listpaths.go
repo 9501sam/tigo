@@ -21,10 +21,11 @@ type TraceData struct {
 		TraceID string `json:"traceID"`
 		Spans   []struct {
 			OperationName string `json:"operationName"`
-			Process       struct {
-				ServiceName string `json:"serviceName"`
-			} `json:"process"`
+			ProcessID     string `json:"processID"`
 		} `json:"spans"`
+		Processes map[string]struct {
+			ServiceName string `json:"serviceName"`
+		} `json:"processes"`
 	} `json:"data"`
 }
 
@@ -50,29 +51,15 @@ func fetchTraces(service string, start, end int64) (*TraceData, error) {
 }
 
 func main() {
-	start := time.Now().Add(-10*time.Minute).UnixNano() / 1000 // 10 分鐘前
-	end := time.Now().UnixNano() / 1000                        // 現在時間
+	start := time.Now().Add(-1*time.Minute).UnixNano() / 1000 // 10 分鐘前
+	end := time.Now().UnixNano() / 1000                       // 現在時間
 
-	paths := make(map[string]int)
-
-	for _, service := range services {
-		traces, err := fetchTraces(service, start, end)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		for _, trace := range traces.Data {
-			var path string
-			for _, span := range trace.Spans {
-				path += fmt.Sprintf(" -> %s(%s)", span.OperationName, span.Process.ServiceName)
-			}
-			paths[path]++
-		}
+	traces, err := fetchTraces("frontend", start, end)
+	if err != nil {
+		fmt.Println(err)
 	}
 
-	fmt.Println("Path Counts:")
-	for path, count := range paths {
-		fmt.Printf("%s : %d\n", path, count)
+	for _, trace := range traces.Data {
+		fmt.Printf("\n%+v\n", trace)
 	}
 }
