@@ -34,21 +34,42 @@ func loadJSONFile[T any](filename string, target *T) error {
 
 func main() {
 	var traceData TraceData
-	traceResponse := make(map[string]map[string]int64) // [service][operation] 的 response time
+	selfResponse := make(map[string]map[string]int64) // [service][operation] 的 response time
 
 	if err := loadJSONFile("path_durations.json", &traceData); err != nil {
 		fmt.Println("Error loading path_durations.json:", err)
 		return
 	}
 
-	if err := loadJSONFile("self_durations.json", &traceResponse); err != nil {
+	if err := loadJSONFile("self_durations.json", &selfResponse); err != nil {
 		fmt.Println("Error loading self_durations.json:", err)
 		return
 	}
 
-	// printJSON(traceData, "")
-	// printJSON(traceResponse, "")
+	for i := range traceData.Data {
+		// TODO: calculate traceData.Data[i].PredictedDuration = .......
+		var predictDuration int64 = 0
 
+		// add response time
+		for _, span := range traceData.Data[i].Spans {
+			if responseTime, ok := selfResponse[span.ProcessID][span.OperationName]; ok {
+				predictDuration += responseTime
+			} else {
+				fmt.Println("Error: No response time found for operation ", span.OperationName, " in process ", span.ProcessID)
+			}
+		}
+
+		// TODO: add the network part
+		// for _, span := range traceData.Data[i].Spans {
+		// 	var numOfNotFrontend int64 = 0
+		// 	predictDuration += networkDelay // TODO: get the networkDelay
+		// }
+
+		// Finally
+		traceData.Data[i].PredictedDuration = predictDuration
+
+	}
+	printJSON(traceData, "")
 }
 
 func printJSON(data interface{}, fileName string) {
