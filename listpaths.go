@@ -59,7 +59,29 @@ func main() {
 		fmt.Println(err)
 	}
 
-	for _, trace := range traces.Data {
-		fmt.Printf("\n%+v\n", trace)
+	// for _, trace := range traces.Data {
+	// 	processesMap := trace.Processes
+	// 	for _, span := range trace.Spans {
+	// 		span.ProcessID = processesMap[span.ProcessID].ServiceName
+	// 	}
+	// 	// fmt.Printf("\n%+v\n", trace)
+	// }
+	for i := range traces.Data {
+		for j := range traces.Data[i].Spans {
+			if serviceName, ok := traces.Data[i].Processes[traces.Data[i].Spans[j].ProcessID]; ok {
+				traces.Data[i].Spans[j].ProcessID = serviceName.ServiceName
+			}
+		}
 	}
+	printJSON(traces)
+}
+
+func printJSON(data interface{}) {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		fmt.Println("Error marshalling JSON:", err)
+		return
+
+	}
+	fmt.Println(string(jsonData))
 }
