@@ -18,10 +18,13 @@ const jaegerBaseURL = "http://localhost:16686/api/traces?service=%s&start=%d&end
 
 type TraceData struct {
 	Data []struct {
-		TraceID string `json:"traceID"`
-		Spans   []struct {
+		TraceID  string `json:"traceID"`
+		Duration int64  `json:"duration"` // 加了這個 (in microseconds)
+		Spans    []struct {
 			OperationName string `json:"operationName"`
 			ProcessID     string `json:"processID"`
+			StartTime     int64  `json:"startTime"`
+			Duration      int64  `json:"duration"`
 		} `json:"spans"`
 		Processes map[string]struct {
 			ServiceName string `json:"serviceName"`
@@ -59,14 +62,6 @@ func main() {
 		fmt.Println(err)
 	}
 
-	// for _, trace := range traces.Data {
-	// 	processesMap := trace.Processes
-	// 	for _, span := range trace.Spans {
-	// 		span.ProcessID = processesMap[span.ProcessID].ServiceName
-	// 	}
-	// 	// fmt.Printf("\n%+v\n", trace)
-	// }
-
 	// replace ProcessID with actual service Name
 	for i := range traces.Data {
 		for j := range traces.Data[i].Spans {
@@ -77,6 +72,25 @@ func main() {
 				traces.Data[i].Spans[j].ProcessID = serviceName.ServiceName
 			}
 		}
+	}
+
+	for i := range traces.Data {
+		earliestStart := int64(1<<63 - 1) // 最大 int64
+		latestEnd := int64(0)
+
+		for j := range traces.Data[i].Spans {
+			span := &traces.Data[i].Spans[j]
+
+			if span.StartTime < earliestStart {
+				earliestStart = span.StartTime
+			}
+			endTime := span.StartTime + span.Duration
+			if endTime > latestEnd {
+				latestEnd = endTime
+			}
+		}
+
+		traces.Data[i].Duration = latestEnd - earliestStart // 計算 trace duration
 	}
 
 	printJSON(traces)
