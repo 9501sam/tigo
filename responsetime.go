@@ -181,7 +181,7 @@ func main() {
 	}
 	fmt.Println(string(jsonData))
 
-	// TODO: save jsonData to a file
+	// save jsonData to a file
 	err = os.WriteFile("self_durations.json", jsonData, 0644)
 	if err != nil {
 		log.Fatalf("Error writing JSON to file: %v", err)

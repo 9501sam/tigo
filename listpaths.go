@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -104,4 +106,9 @@ func printJSON(data interface{}) {
 
 	}
 	fmt.Println(string(jsonData))
+	err = os.WriteFile("path_durations.json", jsonData, 0644)
+	if err != nil {
+		log.Fatalf("Error writing JSON to file: %v", err)
+
+	}
 }
