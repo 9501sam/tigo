@@ -66,13 +66,19 @@ func main() {
 	// 	}
 	// 	// fmt.Printf("\n%+v\n", trace)
 	// }
+
+	// replace ProcessID with actual service Name
 	for i := range traces.Data {
 		for j := range traces.Data[i].Spans {
-			if serviceName, ok := traces.Data[i].Processes[traces.Data[i].Spans[j].ProcessID]; ok {
+			op := traces.Data[i].Spans[j].OperationName
+			if op == "RedisAddItem" || op == "RedisEmptyCart" || op == "RedisGetCart" {
+				traces.Data[i].Spans[j].ProcessID = "redis"
+			} else if serviceName, ok := traces.Data[i].Processes[traces.Data[i].Spans[j].ProcessID]; ok {
 				traces.Data[i].Spans[j].ProcessID = serviceName.ServiceName
 			}
 		}
 	}
+
 	printJSON(traces)
 }
 
