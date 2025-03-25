@@ -34,7 +34,8 @@ func loadJSONFile[T any](filename string, target *T) error {
 
 func main() {
 	var traceData TraceData
-	selfResponse := make(map[string]map[string]int64) // [service][operation] 的 response time
+	selfResponse := make(map[string]map[string]int64)      // [service][operation] 的 response time
+	selfResponseCloud := make(map[string]map[string]int64) // [service][operation] 的 response time
 
 	if err := loadJSONFile("path_durations.json", &traceData); err != nil {
 		fmt.Println("Error loading path_durations.json:", err)
@@ -46,6 +47,11 @@ func main() {
 		return
 	}
 
+	if err := loadJSONFile("self_durationsCloud.json", &selfResponseCloud); err != nil {
+		fmt.Println("Error loading self_durationsCloud.json:", err)
+		return
+	}
+
 	for i := range traceData.Data {
 		// TODO: calculate traceData.Data[i].PredictedDuration = .......
 		var predictDuration int64 = 0
@@ -53,23 +59,30 @@ func main() {
 		// add response time
 		for _, span := range traceData.Data[i].Spans {
 			if responseTime, ok := selfResponse[span.ProcessID][span.OperationName]; ok {
-				predictDuration += responseTime
+				if span.ProcessID == "checkoutservice" || span.ProcessID == "currencyservice" {
+					predictDuration += (responseTime + selfResponseCloud[span.ProcessID][span.OperationName]) / 2 // TODO: selfResponseCloud
+				} else {
+					predictDuration += responseTime
+
+				}
 			} else {
 				fmt.Println("Error: No response time found for operation ", span.OperationName, " in process ", span.ProcessID)
 			}
 		}
 
 		// TODO: add the network part
-		// for _, span := range traceData.Data[i].Spans {
-		// 	var numOfNotFrontend int64 = 0
-		// 	predictDuration += networkDelay // TODO: get the networkDelay
-		// }
+		var networkDelay int64 = 50 * 1000
+		for _, span := range traceData.Data[i].Spans {
+			if span.ProcessID == "checkoutservice" || span.ProcessID == "currencyservice" {
+				predictDuration += networkDelay // 來回各一次，機率 1 / 2 所以為一倍 networkDelay
+			}
+		}
 
 		// Finally
 		traceData.Data[i].PredictedDuration = predictDuration
 
 	}
-	printJSON(traceData, "")
+	printJSON(traceData, "fitness.json")
 }
 
 func printJSON(data interface{}, fileName string) {
