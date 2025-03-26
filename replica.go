@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	appsv1 "k8s.io/api/apps/v1"
+	// appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -19,7 +19,7 @@ var jsonStr = `{
 		"vm1": {
 			"cartservice": 1,
 			"checkoutservice": 1,
-			"currencyservice": 1,
+			"currencyservice": 2,
 			"emailservice": 0,
 			"frontend": 0,
 			"paymentservice": 0,
@@ -55,7 +55,7 @@ var jsonStr = `{
 		"asus": {
 			"cartservice": 0,
 			"checkoutservice": 0,
-			"currencyservice": 0,
+			"currencyservice": 1,
 			"emailservice": 0,
 			"frontend": 0,
 			"paymentservice": 0,
@@ -152,53 +152,36 @@ func updateDeployments(config map[string]map[string]int, clientset *kubernetes.C
 }
 
 func applyDeployment(deployment string, replicas int, nodeAffinity *corev1.Affinity, topologySpreadConstraints []corev1.TopologySpreadConstraint, clientset *kubernetes.Clientset) error {
-	// 先嘗試取得現有的 Deployment，看看是否有指定 image
+	// 先嘗試取得現有的 Deployment
 	deploymentsClient := clientset.AppsV1().Deployments("online-boutique")
 	existingDeployment, err := deploymentsClient.Get(context.TODO(), deployment, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get existing deployment: %w", err)
 	}
 
-	// 取得容器映像檔
-	image := existingDeployment.Spec.Template.Spec.Containers[0].Image
+	// 建立新的 Deployment 配置，只更新副本數量，其他設定保留
+	dep := existingDeployment.DeepCopy() // 複製現有的 Deployment
 
-	// 建立新的 Deployment 配置
-	dep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      deployment,
-			Namespace: "online-boutique",
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: int32Ptr(int32(replicas)),
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": deployment},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": deployment},
-				},
-				Spec: corev1.PodSpec{
-					Affinity:                  nodeAffinity,
-					TopologySpreadConstraints: topologySpreadConstraints,
-					Containers: []corev1.Container{
-						{
-							Name:  deployment,
-							Image: image, // 使用現有的 image
-						},
-					},
-				},
-			},
-		},
+	// 更新副本數量
+	dep.Spec.Replicas = int32Ptr(int32(replicas))
+
+	// 如果有設定 Node Affinity，更新 Affinity
+	if nodeAffinity != nil {
+		dep.Spec.Template.Spec.Affinity = nodeAffinity
 	}
 
-	// 更新或創建 Deployment
-	if existingDeployment != nil {
-		dep.ResourceVersion = existingDeployment.ResourceVersion // 保留資源版本以便更新
-		_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
-	} else {
-		_, err = deploymentsClient.Create(context.TODO(), dep, metav1.CreateOptions{})
+	// 如果有設定 Topology Spread Constraints，更新 Topology Spread Constraints
+	if topologySpreadConstraints != nil {
+		dep.Spec.Template.Spec.TopologySpreadConstraints = topologySpreadConstraints
 	}
-	return err
+
+	// 更新 Deployment
+	_, err = deploymentsClient.Update(context.TODO(), dep, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update deployment: %w", err)
+	}
+
+	return nil
 }
 
 func int32Ptr(i int32) *int32 { return &i }
