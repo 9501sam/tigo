@@ -2,125 +2,221 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"os"
+	"os/exec"
+	"strings"
 
 	// appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-var nodes = []string{"vm1", "vm2", "vm3", "asus"}
-var services = []string{
-	"adservice", "cartservice", "checkoutservice", "currencyservice", "emailservice",
-	"frontend", "paymentservice", "productcatalogservice", "recommendationservice",
-	"redis-cart", "shippingservice",
-}
-
-var config *rest.Config
-var err error
+var jsonStr = `{
+		"vm1": {
+			"cartservice": 1,
+			"checkoutservice": 1,
+			"currencyservice": 1,
+			"emailservice": 0,
+			"frontend": 0,
+			"paymentservice": 0,
+			"productcatalogservice": 0,
+			"recommendationservice": 0,
+			"redis-cart": 0,
+			"shippingservice": 0
+		},
+		"vm2": {
+			"cartservice": 0,
+			"checkoutservice": 0,
+			"currencyservice": 0,
+			"emailservice": 1,
+			"frontend": 1,
+			"paymentservice": 1,
+			"productcatalogservice": 0,
+			"recommendationservice": 0,
+			"redis-cart": 0,
+			"shippingservice": 0
+		},
+		"vm3": {
+			"cartservice": 0,
+			"checkoutservice": 0,
+			"currencyservice": 0,
+			"emailservice": 0,
+			"frontend": 0,
+			"paymentservice": 0,
+			"productcatalogservice": 1,
+			"recommendationservice": 1,
+			"redis-cart": 1,
+			"shippingservice": 1
+		},
+		"asus": {
+			"cartservice": 0,
+			"checkoutservice": 0,
+			"currencyservice": 0,
+			"emailservice": 0,
+			"frontend": 0,
+			"paymentservice": 0,
+			"productcatalogservice": 0,
+			"recommendationservice": 0,
+			"redis-cart": 0,
+			"shippingservice": 1
+		}
+	}`
 
 func main() {
+	var config map[string]map[string]int
 
-	// 判斷是否在 Kubernetes 內部運行
-	if _, exists := os.LookupEnv("KUBERNETES_SERVICE_HOST"); exists {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			log.Fatalf("Failed to create in-cluster config: %v", err)
-		}
-	} else {
-		kubeconfigPath := clientcmd.RecommendedHomeFile
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-		if err != nil {
-			log.Fatalf("Failed to load kubeconfig: %v", err)
-		}
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
+	err := json.Unmarshal([]byte(jsonStr), &config)
 	if err != nil {
-		log.Fatalf("Failed to create clientset: %v", err)
+		log.Fatalf("Error unmarshaling JSON: %v", err)
 	}
 
-	// 假設這是來自 DPSO 的最佳解
-	solution := [][]int{
-		{1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0}, // vm1
-		{0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0}, // vm2
-		{0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1}, // vm3
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, // asus
+	for vm, services := range config {
+		fmt.Printf("%s:\n", vm)
+		for service, value := range services {
+			fmt.Printf("\t%s: %d\n", service, value)
+		}
 	}
 
-	// 逐一更新 Kubernetes 部署
-	for s, serviceName := range services {
-		totalReplicas := 0
-		nodeReplicas := map[string]int{}
-
-		for n, nodeName := range nodes {
-			replicas := solution[n][s]
-			nodeReplicas[nodeName] = replicas
-			totalReplicas += replicas
-		}
-
-		if totalReplicas == 0 {
-			fmt.Printf("Skipping service %s (no replicas needed)\n", serviceName)
-			continue
-		}
-
-		fmt.Printf("Updating service %s with total %d replicas\n", serviceName, totalReplicas)
-
-		// 獲取現有 Deployment
-		deployment, err := clientset.AppsV1().Deployments("online-boutique").Get(context.TODO(), serviceName, metav1.GetOptions{})
-		if err != nil {
-			log.Printf("Failed to get deployment %s: %v", serviceName, err)
-			continue
-		}
-
-		// 更新 replicas 數量
-		replicasInt32 := int32(totalReplicas)
-		deployment.Spec.Replicas = &replicasInt32
-
-		// 設定 Node Affinity
-		nodeAffinity := &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "kubernetes.io/hostname",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   getAssignedNodes(nodeReplicas),
-							},
-						},
-					},
-				},
-			},
-		}
-
-		deployment.Spec.Template.Spec.Affinity = &corev1.Affinity{
-			NodeAffinity: nodeAffinity,
-		}
-
-		// 更新 Deployment
-		_, err = clientset.AppsV1().Deployments("online-boutique").Update(context.TODO(), deployment, metav1.UpdateOptions{})
-		if err != nil {
-			log.Printf("Failed to update deployment %s: %v", serviceName, err)
-			continue
-		}
-
-		fmt.Printf("Successfully updated service %s\n", serviceName)
+	err = updateDeployments(config)
+	if err != nil {
+		log.Fatalf("Error updating deployments: %v", err)
 	}
+
+	fmt.Println("Successfully updated all deployments")
 }
 
-// 取得有 Replica 的節點列表
-func getAssignedNodes(nodeReplicas map[string]int) []string {
-	var nodes []string
-	for node, replicas := range nodeReplicas {
-		if replicas > 0 {
-			nodes = append(nodes, node)
+func updateDeployments(config map[string]map[string]int) error {
+	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	)
+
+	configRest, err := kubeconfig.ClientConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load kubeconfig: %v", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(configRest)
+	if err != nil {
+		return fmt.Errorf("failed to create clientset: %v", err)
+	}
+
+	ctx := context.Background()
+	namespace := "online-boutique"
+
+	type deploymentInfo struct {
+		node     string
+		replicas int32
+	}
+	serviceDeployments := make(map[string][]deploymentInfo)
+
+	// Collect deployment requirements
+	for node, services := range config {
+		for service, replicas := range services {
+			if replicas > 0 {
+				serviceDeployments[service] = append(serviceDeployments[service], deploymentInfo{
+					node:     node,
+					replicas: int32(replicas),
+				})
+			}
 		}
 	}
-	return nodes
+
+	for service, deployments := range serviceDeployments {
+		// Get original deployment as template
+		original, err := clientset.AppsV1().Deployments(namespace).Get(ctx, service, metav1.GetOptions{})
+		if err != nil {
+			log.Printf("Warning: Original deployment %s not found: %v", service, err)
+			continue
+		}
+
+		// Handle each node-specific deployment
+		for _, depInfo := range deployments {
+			deploymentName := service
+			if len(deployments) > 1 {
+				deploymentName = fmt.Sprintf("%s-%s", service, depInfo.node)
+			}
+
+			// Check if deployment exists
+			deployment, err := clientset.AppsV1().Deployments(namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+			if err != nil && strings.Contains(err.Error(), "not found") {
+				// Create new deployment
+				deployment = original.DeepCopy()
+				// Clear metadata fields that shouldn't be set on creation
+				deployment.ObjectMeta = metav1.ObjectMeta{
+					Name:      deploymentName,
+					Namespace: namespace,
+				}
+				deployment.Spec.Replicas = &depInfo.replicas
+				if len(deployments) > 1 {
+					deployment.Spec.Selector = &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": deploymentName,
+						},
+					}
+					deployment.Spec.Template.Labels = map[string]string{
+						"app": deploymentName,
+					}
+				}
+				if deployment.Spec.Template.Spec.NodeSelector == nil {
+					deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
+				}
+				deployment.Spec.Template.Spec.NodeSelector["kubernetes.io/hostname"] = depInfo.node
+
+				_, err = clientset.AppsV1().Deployments(namespace).Create(ctx, deployment, metav1.CreateOptions{})
+				if err != nil {
+					log.Printf("Failed to create deployment %s: %v", deploymentName, err)
+					continue
+				}
+			} else if err == nil {
+				// Update existing deployment
+				deployment.Spec.Replicas = &depInfo.replicas
+				if len(deployments) > 1 {
+					deployment.Spec.Selector = &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": deploymentName,
+						},
+					}
+					deployment.Spec.Template.Labels = map[string]string{
+						"app": deploymentName,
+					}
+				}
+				if deployment.Spec.Template.Spec.NodeSelector == nil {
+					deployment.Spec.Template.Spec.NodeSelector = make(map[string]string)
+				}
+				deployment.Spec.Template.Spec.NodeSelector["kubernetes.io/hostname"] = depInfo.node
+
+				_, err = clientset.AppsV1().Deployments(namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+				if err != nil {
+					log.Printf("Failed to update deployment %s: %v", deploymentName, err)
+					continue
+				}
+			} else {
+				log.Printf("Error checking deployment %s: %v", deploymentName, err)
+				continue
+			}
+			fmt.Printf("Updated %s with %d replicas on %s\n", deploymentName, depInfo.replicas, depInfo.node)
+		}
+
+		// Clean up original deployment only if we created multiple node-specific ones
+		if len(deployments) > 1 {
+			err = clientset.AppsV1().Deployments(namespace).Delete(ctx, service, metav1.DeleteOptions{})
+			if err != nil && !strings.Contains(err.Error(), "not found") {
+				log.Printf("Failed to delete original deployment %s: %v", service, err)
+			}
+		}
+	}
+
+	cmd := exec.Command("kubectl", "get", "pods", "-n", namespace, "-o", "wide")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Failed to verify deployments: %v", err)
+	} else {
+		fmt.Printf("\nCurrent pods:\n%s\n", string(output))
+	}
+
+	return nil
 }
