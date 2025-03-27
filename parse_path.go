@@ -79,7 +79,31 @@ func main() {
 	// replace ProcessID with actual service Name
 	traceData = setServiceName(traceData)
 
+	// calculate trace duration
+	traceData = setTraceDuration(traceData)
+
 	printJSON(traceData, "")
+}
+
+func setTraceDuration(traceData *TraceData) *TraceData {
+	for i := range traceData.Data {
+		earliestStart := int64(1<<63 - 1) // 最大 int64
+		latestEnd := int64(0)
+
+		for j := range traceData.Data[i].Spans {
+			span := &traceData.Data[i].Spans[j]
+
+			if span.StartTime < earliestStart {
+				earliestStart = span.StartTime
+			}
+			endTime := span.StartTime + span.Duration
+			if endTime > latestEnd {
+				latestEnd = endTime
+			}
+		}
+		traceData.Data[i].Duration = latestEnd - earliestStart // 計算 trace duration
+	}
+	return traceData
 }
 
 func setServiceName(traceData *TraceData) *TraceData {
