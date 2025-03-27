@@ -88,7 +88,7 @@ func main() {
 			}
 		}
 
-		// Print calling hierarchy
+		// Print calling hierarchy with parent information
 		fmt.Println("Calling Hierarchy:")
 		for _, root := range rootSpans {
 			printSpanHierarchy(root, spanMap, trace.Processes, 0)
@@ -110,16 +110,30 @@ func main() {
 	}
 }
 
-// printSpanHierarchy recursively prints the span hierarchy.
+// printSpanHierarchy recursively prints the span hierarchy with parent information.
 func printSpanHierarchy(span Span, spanMap map[string]Span, processes map[string]Process, depth int) {
 	service := processes[span.ProcessID].ServiceName
 	prefix := ""
 	for i := 0; i < depth; i++ {
 		prefix += "  "
 	}
-	fmt.Printf("%s%s (%s)\n", prefix, span.OperationName, service)
 
-	// Find children
+	// Determine parent information
+	parentInfo := "none"
+	for _, ref := range span.References {
+		if ref.RefType == "CHILD_OF" {
+			if parentSpan, exists := spanMap[ref.SpanID]; exists {
+				parentService := processes[parentSpan.ProcessID].ServiceName
+				parentInfo = fmt.Sprintf("%s (%s)", parentSpan.OperationName, parentService)
+			}
+			break
+		}
+	}
+
+	// Print span with parent info
+	fmt.Printf("%s%s (%s) (parent: %s)\n", prefix, span.OperationName, service, parentInfo)
+
+	// Find and print children
 	for _, s := range spanMap {
 		for _, ref := range s.References {
 			if ref.RefType == "CHILD_OF" && ref.SpanID == span.SpanID {
