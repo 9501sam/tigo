@@ -35,6 +35,7 @@ type Span struct {
 	StartTime       int64  `json:"startTime"`
 	Duration        int64  `json:"duration"`
 	ProcessID       string `json:"processID"`
+	ServiceName     string `json:"serviceName"`
 	ParentService   string `json:"parentService"`
 	ParentOperation string `json:"parentOperation"`
 }
@@ -75,7 +76,24 @@ func main() {
 	// Populate ParentService and ParentOperation
 	traceData = populateParentFields(traceData)
 
+	// replace ProcessID with actual service Name
+	traceData = setServiceName(traceData)
+
 	printJSON(traceData, "")
+}
+
+func setServiceName(traceData *TraceData) *TraceData {
+	for i := range traceData.Data {
+		for j := range traceData.Data[i].Spans {
+			op := traceData.Data[i].Spans[j].OperationName
+			if op == "RedisAddItem" || op == "RedisEmptyCart" || op == "RedisGetCart" {
+				traceData.Data[i].Spans[j].ServiceName = "redis-cart"
+			} else if serviceName, ok := traceData.Data[i].Processes[traceData.Data[i].Spans[j].ProcessID]; ok {
+				traceData.Data[i].Spans[j].ServiceName = serviceName.ServiceName
+			}
+		}
+	}
+	return traceData
 }
 
 // populateParentFields fills in ParentService and ParentOperation for each span.
