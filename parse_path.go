@@ -5,19 +5,34 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
-	"time"
 )
 
-// Trace represents the top-level trace object from the API.
-type Trace struct {
+// TraceData is the target struct to fill with Jaeger data.
+type TraceData struct {
+	Data []struct {
+		TraceID           string `json:"traceID"`
+		Duration          int64  `json:"duration"`          // Microseconds (µs)
+		PredictedDuration int64  `json:"predictedDuration"` // Microseconds (µs)
+		Spans             []struct {
+			OperationName   string `json:"operationName"`
+			ProcessID       string `json:"processID"`
+			ParentService   string `json:"parentService"`
+			ParentOperation string `json:"parentOperation"`
+			StartTime       int64  `json:"startTime"`
+			Duration        int64  `json:"duration"`
+		} `json:"spans"`
+	} `json:"data"`
+}
+
+// RawTrace represents the raw Jaeger API response structure.
+type RawTrace struct {
 	TraceID   string             `json:"traceID"`
-	Spans     []Span             `json:"spans"`
+	Spans     []RawSpan          `json:"spans"`
 	Processes map[string]Process `json:"processes"`
 }
 
-// Span represents an individual span within a trace.
-type Span struct {
+// RawSpan represents a span in the raw Jaeger API response.
+type RawSpan struct {
 	TraceID       string      `json:"traceID"`
 	SpanID        string      `json:"spanID"`
 	OperationName string      `json:"operationName"`
@@ -40,7 +55,7 @@ type Process struct {
 
 func main() {
 	// Fetch traces from Jaeger API
-	url := "http://localhost:16686/api/traces?service=frontend&limit=2"
+	url := "http://localhost:16686/api/traces?service=frontend&limit=1"
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Printf("Failed to fetch traces: %v\n", err)
@@ -54,28 +69,55 @@ func main() {
 		return
 	}
 
-	// Parse JSON response
-	var response struct {
-		Data []Trace `json:"data"`
+	// Parse raw Jaeger JSON response
+	var rawResponse struct {
+		Data []RawTrace `json:"data"`
 	}
-	if err := json.Unmarshal(body, &response); err != nil {
+	if err := json.Unmarshal(body, &rawResponse); err != nil {
 		fmt.Printf("Failed to parse JSON: %v\n", err)
 		return
 	}
 
-	// Process each trace
-	for _, trace := range response.Data {
-		fmt.Printf("Trace ID: %s\n", trace.TraceID)
+	// Convert raw data to TraceData struct
+	traceData := convertToTraceData(rawResponse.Data)
 
-		// Build a map of spanID to Span for easy lookup
-		spanMap := make(map[string]Span)
-		for _, span := range trace.Spans {
+	// Print the resulting TraceData as JSON for verification
+	jsonOutput, err := json.MarshalIndent(traceData, "", "  ")
+	if err != nil {
+		fmt.Printf("Failed to marshal TraceData: %v\n", err)
+		return
+	}
+	fmt.Println(string(jsonOutput))
+}
+
+// convertToTraceData transforms raw Jaeger data into the TraceData struct.
+func convertToTraceData(rawTraces []RawTrace) TraceData {
+	traceData := TraceData{
+		Data: make([]struct {
+			TraceID           string `json:"traceID"`
+			Duration          int64  `json:"duration"`
+			PredictedDuration int64  `json:"predictedDuration"`
+			Spans             []struct {
+				OperationName   string `json:"operationName"`
+				ProcessID       string `json:"processID"`
+				ParentService   string `json:"parentService"`
+				ParentOperation string `json:"parentOperation"`
+				StartTime       int64  `json:"startTime"`
+				Duration        int64  `json:"duration"`
+			} `json:"spans"`
+		}, len(rawTraces)),
+	}
+
+	for i, rawTrace := range rawTraces {
+		// Build a map of spanID to RawSpan for parent lookup
+		spanMap := make(map[string]RawSpan)
+		for _, span := range rawTrace.Spans {
 			spanMap[span.SpanID] = span
 		}
 
-		// Find root spans (no parent) and build hierarchy
-		var rootSpans []Span
-		for _, span := range trace.Spans {
+		// Calculate total duration of the trace (sum of root span durations or max span duration)
+		var totalDuration int64
+		for _, span := range rawTrace.Spans {
 			hasParent := false
 			for _, ref := range span.References {
 				if ref.RefType == "CHILD_OF" {
@@ -83,62 +125,47 @@ func main() {
 					break
 				}
 			}
-			if !hasParent {
-				rootSpans = append(rootSpans, span)
+			if !hasParent && span.Duration > totalDuration {
+				totalDuration = span.Duration
 			}
 		}
 
-		// Print calling hierarchy with parent information
-		fmt.Println("Calling Hierarchy:")
-		for _, root := range rootSpans {
-			printSpanHierarchy(root, spanMap, trace.Processes, 0)
-		}
+		// Fill trace-level fields
+		traceData.Data[i].TraceID = rawTrace.TraceID
+		traceData.Data[i].Duration = totalDuration
+		traceData.Data[i].PredictedDuration = 0 // Not provided by Jaeger, default to 0
+		traceData.Data[i].Spans = make([]struct {
+			OperationName   string `json:"operationName"`
+			ProcessID       string `json:"processID"`
+			ParentService   string `json:"parentService"`
+			ParentOperation string `json:"parentOperation"`
+			StartTime       int64  `json:"startTime"`
+			Duration        int64  `json:"duration"`
+		}, len(rawTrace.Spans))
 
-		// Sort spans by start time for sequence
-		sort.Slice(trace.Spans, func(i, j int) bool {
-			return trace.Spans[i].StartTime < trace.Spans[j].StartTime
-		})
+		// Fill span-level fields
+		for j, rawSpan := range rawTrace.Spans {
+			traceData.Data[i].Spans[j].OperationName = rawSpan.OperationName
+			traceData.Data[i].Spans[j].ProcessID = rawSpan.ProcessID
+			traceData.Data[i].Spans[j].StartTime = rawSpan.StartTime
+			traceData.Data[i].Spans[j].Duration = rawSpan.Duration
 
-		// Print sequence
-		fmt.Println("Sequence of Operations:")
-		for _, span := range trace.Spans {
-			start := time.UnixMicro(span.StartTime)
-			service := trace.Processes[span.ProcessID].ServiceName
-			fmt.Printf("%s: %s (%s) - Duration: %dµs\n", start.Format(time.RFC3339Nano), span.OperationName, service, span.Duration)
-		}
-		fmt.Println("---")
-	}
-}
-
-// printSpanHierarchy recursively prints the span hierarchy with parent information.
-func printSpanHierarchy(span Span, spanMap map[string]Span, processes map[string]Process, depth int) {
-	service := processes[span.ProcessID].ServiceName
-	prefix := ""
-	for i := 0; i < depth; i++ {
-		prefix += "  "
-	}
-
-	// Determine parent information
-	parentInfo := "none"
-	for _, ref := range span.References {
-		if ref.RefType == "CHILD_OF" {
-			if parentSpan, exists := spanMap[ref.SpanID]; exists {
-				parentService := processes[parentSpan.ProcessID].ServiceName
-				parentInfo = fmt.Sprintf("%s (%s)", parentSpan.OperationName, parentService)
+			// Determine parent service and operation
+			parentService := "none"
+			parentOperation := "none"
+			for _, ref := range rawSpan.References {
+				if ref.RefType == "CHILD_OF" {
+					if parentSpan, exists := spanMap[ref.SpanID]; exists {
+						parentService = rawTrace.Processes[parentSpan.ProcessID].ServiceName
+						parentOperation = parentSpan.OperationName
+					}
+					break
+				}
 			}
-			break
+			traceData.Data[i].Spans[j].ParentService = parentService
+			traceData.Data[i].Spans[j].ParentOperation = parentOperation
 		}
 	}
 
-	// Print span with parent info
-	fmt.Printf("%s%s (%s) (parent: %s)\n", prefix, span.OperationName, service, parentInfo)
-
-	// Find and print children
-	for _, s := range spanMap {
-		for _, ref := range s.References {
-			if ref.RefType == "CHILD_OF" && ref.SpanID == span.SpanID {
-				printSpanHierarchy(s, spanMap, processes, depth+1)
-			}
-		}
-	}
+	return traceData
 }
