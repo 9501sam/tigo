@@ -32,6 +32,31 @@ func loadJSONFile[T any](filename string, target *T) error {
 	return decoder.Decode(target)
 }
 
+// should input 1. app(TraceData) 2. deploymentConfig, 3. processing time 4. processing time on cloud
+func fitness(traceData TraceData, deploymentConfig map[string]map[string]int,
+	selfResponse map[string]map[string]int64, selfResponseCloud map[string]map[string]int64) int64 {
+	for i := range traceData.Data {
+		var predictDuration int64 = 0
+
+		// add response time
+		for _, span := range traceData.Data[i].Spans {
+			if responseTime, ok := selfResponse[span.ProcessID][span.OperationName]; ok {
+				// add response time (edge or cloud)
+			} else {
+				fmt.Println("Error: No response time found for operation ", span.OperationName, " in process ", span.ProcessID)
+			}
+		}
+
+		// the network part
+		var networkDelay int64 = 50 * 1000
+		for _, span := range traceData.Data[i].Spans {
+			// add network delay
+		}
+		// Finally
+		traceData.Data[i].PredictedDuration = predictDuration
+	}
+}
+
 func main() {
 	var traceData TraceData
 	selfResponse := make(map[string]map[string]int64)      // [service][operation] 的 response time
@@ -52,37 +77,9 @@ func main() {
 		return
 	}
 
-	for i := range traceData.Data {
-		// TODO: calculate traceData.Data[i].PredictedDuration = .......
-		var predictDuration int64 = 0
+	fitness(traceData)
 
-		// add response time
-		for _, span := range traceData.Data[i].Spans {
-			if responseTime, ok := selfResponse[span.ProcessID][span.OperationName]; ok {
-				if span.ProcessID == "checkoutservice" || span.ProcessID == "currencyservice" {
-					predictDuration += (responseTime + selfResponseCloud[span.ProcessID][span.OperationName]) / 2 // TODO: selfResponseCloud
-				} else {
-					predictDuration += responseTime
-
-				}
-			} else {
-				fmt.Println("Error: No response time found for operation ", span.OperationName, " in process ", span.ProcessID)
-			}
-		}
-
-		// TODO: add the network part
-		var networkDelay int64 = 50 * 1000
-		for _, span := range traceData.Data[i].Spans {
-			if span.ProcessID == "checkoutservice" || span.ProcessID == "currencyservice" {
-				predictDuration += networkDelay // 來回各一次，機率 1 / 2 所以為一倍 networkDelay
-			}
-		}
-
-		// Finally
-		traceData.Data[i].PredictedDuration = predictDuration
-
-	}
-	printJSON(traceData, "fitness.json")
+	// printJSON(traceData, "fitness.json")
 }
 
 func printJSON(data interface{}, fileName string) {
