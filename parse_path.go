@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
+	"time"
 )
 
 // TraceData represents both the raw Jaeger API response and the target structure.
@@ -36,43 +39,47 @@ type Span struct {
 	ParentOperation string `json:"parentOperation"`
 }
 
-func main() {
-	// Fetch traces from Jaeger API
-	url := "http://localhost:16686/api/traces?service=frontend&limit=4"
+// fetch from jaeger API
+const jaegerBaseURL = "http://localhost:16686/api/traces?service=%s&start=%d&end=%d" // Jaeger API URL
+
+func fetchTraces(service string, start, end int64) (*TraceData, error) {
+	url := fmt.Sprintf(jaegerBaseURL, service, start, end)
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Printf("Failed to fetch traces: %v\n", err)
-		return
+		return nil, fmt.Errorf("error fetching traces for %s: %w", service, err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("Failed to read response: %v\n", err)
-		return
+		return nil, fmt.Errorf("error reading response body for %s: %w", service, err)
 	}
 
-	// Parse raw Jaeger JSON response directly into TraceData
-	var traceData TraceData
-	if err := json.Unmarshal(body, &traceData); err != nil {
-		fmt.Printf("Failed to parse JSON: %v\n", err)
-		return
+	var traces TraceData
+	if err := json.Unmarshal(body, &traces); err != nil {
+		return nil, fmt.Errorf("error unmarshalling JSON for %s: %w", service, err)
+	}
+
+	return &traces, nil
+}
+
+func main() {
+	start := time.Now().Add(-1*time.Minute).UnixNano() / 1000 // 10 分鐘前
+	end := time.Now().UnixNano() / 1000                       // 現在時間
+
+	traceData, err := fetchTraces("frontend", start, end)
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	// Populate ParentService and ParentOperation
 	traceData = populateParentFields(traceData)
 
-	// Print the resulting TraceData as JSON for verification
-	jsonOutput, err := json.MarshalIndent(traceData, "", "  ")
-	if err != nil {
-		fmt.Printf("Failed to marshal TraceData: %v\n", err)
-		return
-	}
-	fmt.Println(string(jsonOutput))
+	printJSON(traceData, "")
 }
 
 // populateParentFields fills in ParentService and ParentOperation for each span.
-func populateParentFields(traceData TraceData) TraceData {
+func populateParentFields(traceData *TraceData) *TraceData {
 	for i, trace := range traceData.Data {
 		// Build a map of spanID to Span for parent lookup
 		spanMap := make(map[string]Span)
@@ -115,4 +122,20 @@ func populateParentFields(traceData TraceData) TraceData {
 		}
 	}
 	return traceData
+}
+
+func printJSON(data interface{}, fileName string) {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		fmt.Println("Error marshalling JSON:", err)
+		return
+	}
+	fmt.Println(string(jsonData))
+
+	if fileName != "" {
+		err = os.WriteFile(fileName, jsonData, 0644)
+		if err != nil {
+			log.Fatalf("Error writing JSON to file: %v", err)
+		}
+	}
 }
