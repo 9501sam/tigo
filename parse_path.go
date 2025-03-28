@@ -12,7 +12,9 @@ import (
 
 // TraceData represents both the raw Jaeger API response and the target structure.
 type TraceData struct {
-	Data []struct {
+	AverageDuration          int64 `json:"averageDuration"`          // Microseconds (µs)
+	AveragePredictedDuration int64 `json:"averagePredictedDuration"` // Microseconds (µs)
+	Data                     []struct {
 		TraceID           string `json:"traceID"`
 		Duration          int64  `json:"duration"`          // Microseconds (µs)
 		PredictedDuration int64  `json:"predictedDuration"` // Microseconds (µs)
@@ -79,10 +81,36 @@ func main() {
 	// replace ProcessID with actual service Name
 	traceData = setServiceName(traceData)
 
-	// calculate trace duration
+	// calculate trace duration of each span
 	traceData = setTraceDuration(traceData)
 
+	// calculate average (predicte) duration of traces
+	traceData = calculateAverageDuration(traceData)
+
 	printJSON(traceData, "")
+}
+
+func calculateAverageDuration(traceData *TraceData) *TraceData {
+	var totalDuration int64
+	var totalPredictedDuration int64
+	var count int64
+
+	for _, trace := range traceData.Data {
+		totalDuration += trace.Duration
+		totalPredictedDuration += trace.PredictedDuration
+		count++
+	}
+
+	if count > 0 {
+		avgDuration := (totalDuration / count) / 1000
+		avgPredictedDuration := (totalPredictedDuration / count) / 1000
+		traceData.AverageDuration = avgDuration
+		traceData.AveragePredictedDuration = avgPredictedDuration
+	} else {
+		fmt.Println("No data available to calculate averages.")
+	}
+
+	return traceData
 }
 
 func setTraceDuration(traceData *TraceData) *TraceData {
