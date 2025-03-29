@@ -28,6 +28,10 @@ var services = []string{
 	"redis-cart", "shippingservice",
 }
 
+var traceData TraceData
+var processTimeMap TraceData
+var processTimeCloudMap TraceData
+
 func Init() {
 }
 
@@ -132,14 +136,23 @@ func copySolution(dst, src map[string]map[string]int) {
 }
 
 func evaluate(solution map[string]map[string]int) float64 {
-	return 0 // Implement your evaluation logic here
+	// TODO: we should use fittness()
+	// 1. traceData: traces.json
+	// 2. deploymentConfig: solution
+	// 3. processTimeMap: process_time_edge.json
+	// 4. processTimeCloudMap: process_time_cloud.json
+	// 5. probC
+
+	probC := calculateProbability(solution, "frontend")
+
+	return fitness(traceData, solution, processTimeMap, processTimeCloudMap, probC)
 }
 
 func sigmoid(x float64) float64 {
 	return 1 / (1 + 1/float64(1+rand.ExpFloat64()))
 }
 
-func main() {
+func RunDPSO() {
 	Init()
 	dpso := NewDPSO(3, 60)
 	dpso.Optimize()
