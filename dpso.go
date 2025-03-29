@@ -21,7 +21,6 @@ type DPSO struct {
 	MaxIter      int
 }
 
-var nodes = []string{"vm1", "vm2", "vm3", "asus"}
 var services = []string{
 	"adservice", "cartservice", "checkoutservice", "currencyservice", "emailservice",
 	"frontend", "paymentservice", "productcatalogservice", "recommendationservice",
@@ -29,8 +28,8 @@ var services = []string{
 }
 
 var traceData TraceData
-var processTimeMap TraceData
-var processTimeCloudMap TraceData
+var processTimeMap map[string]map[string]int64
+var processTimeCloudMap map[string]map[string]int64
 
 func Init() {
 }
@@ -143,9 +142,9 @@ func evaluate(solution map[string]map[string]int) float64 {
 	// 4. processTimeCloudMap: process_time_cloud.json
 	// 5. probC
 
-	probC := calculateProbability(solution, "frontend")
+	probC := CalculateProbability(solution, "frontend")
 
-	return fitness(traceData, solution, processTimeMap, processTimeCloudMap, probC)
+	return fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC)
 }
 
 func sigmoid(x float64) float64 {

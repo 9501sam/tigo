@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
-	"os"
 )
 
 const jaegerBaseURL = "http://localhost:16686/api"
@@ -135,24 +133,8 @@ func getOperationSelfDuration(service, operation string) (int64, error) {
 	return totalSelfDuration / count, nil
 }
 
-func printJSON(data interface{}, fileName string) {
-	jsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
-		return
-	}
-	fmt.Println(string(jsonData))
-
-	if fileName != "" {
-		err = os.WriteFile(fileName, jsonData, 0644)
-		if err != nil {
-			log.Fatalf("Error writing JSON to file: %v", err)
-		}
-	}
-}
-
 // 遍歷所有 service 和 operations，計算 self duration
-func GetProcessTime(filename string) {
+func GetProcessingTime(filename string) {
 	services, err := getServices()
 	if err != nil {
 		fmt.Printf("Error getting services: %v\n", err)

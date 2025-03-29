@@ -4,49 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"os"
 	"time"
 )
 
-// TraceData represents both the raw Jaeger API response and the target structure.
-type TraceData struct {
-	AverageDuration          int64 `json:"averageDuration"`          // Microseconds (µs)
-	AveragePredictedDuration int64 `json:"averagePredictedDuration"` // Microseconds (µs)
-	Data                     []struct {
-		TraceID           string `json:"traceID"`
-		Duration          int64  `json:"duration"`          // Microseconds (µs)
-		PredictedDuration int64  `json:"predictedDuration"` // Microseconds (µs)
-		Spans             []Span `json:"spans"`
-		Processes         map[string]struct {
-			ServiceName string `json:"serviceName"`
-		} `json:"processes"`
-	} `json:"data"`
-}
-
-// Span represents a span within a trace, used in both Spans and spanMap.
-type Span struct {
-	TraceID       string `json:"traceID"`
-	SpanID        string `json:"spanID"`
-	OperationName string `json:"operationName"`
-	References    []struct {
-		RefType string `json:"refType"`
-		SpanID  string `json:"spanID"`
-	} `json:"references"`
-	StartTime       int64  `json:"startTime"`
-	Duration        int64  `json:"duration"`
-	ProcessID       string `json:"processID"`
-	ServiceName     string `json:"serviceName"`
-	ParentService   string `json:"parentService"`
-	ParentOperation string `json:"parentOperation"`
-}
-
 // fetch from jaeger API
-const jaegerBaseURL = "http://localhost:16686/api/traces?service=%s&start=%d&end=%d" // Jaeger API URL
+const jaegerBaseURLWithTime = "http://localhost:16686/api/traces?service=%s&start=%d&end=%d" // Jaeger API URL
 
 func fetchTraces(service string, start, end int64) (*TraceData, error) {
-	url := fmt.Sprintf(jaegerBaseURL, service, start, end)
+	url := fmt.Sprintf(jaegerBaseURLWithTime, service, start, end)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching traces for %s: %w", service, err)
@@ -168,22 +134,6 @@ func populateParentFields(traceData *TraceData) *TraceData {
 		}
 	}
 	return traceData
-}
-
-func printJSON(data interface{}, fileName string) {
-	jsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
-		return
-	}
-	fmt.Println(string(jsonData))
-
-	if fileName != "" {
-		err = os.WriteFile(fileName, jsonData, 0644)
-		if err != nil {
-			log.Fatalf("Error writing JSON to file: %v", err)
-		}
-	}
 }
 
 func GetTraceData(filename string) {

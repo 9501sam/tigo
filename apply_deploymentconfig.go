@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -14,8 +13,6 @@ import (
 	// "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
-
-var nodes = []string{"vm1", "vm2", "vm3", "asus"}
 
 const namespace = "online-boutique"
 
@@ -135,15 +132,4 @@ func UpdateDeployments(clientset *kubernetes.Clientset, deploymentConfig map[str
 		}
 	}
 	return nil
-}
-
-func loadJSONFile[T any](filename string, target *T) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	return decoder.Decode(target)
 }
