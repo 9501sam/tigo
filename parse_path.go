@@ -66,30 +66,6 @@ func fetchTraces(service string, start, end int64) (*TraceData, error) {
 	return &traces, nil
 }
 
-func main() {
-	start := time.Now().Add(-1*time.Minute).UnixNano() / 1000 // 10 分鐘前
-	end := time.Now().UnixNano() / 1000                       // 現在時間
-
-	traceData, err := fetchTraces("frontend", start, end)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// Populate ParentService and ParentOperation
-	traceData = populateParentFields(traceData)
-
-	// replace ProcessID with actual service Name
-	traceData = setServiceName(traceData)
-
-	// calculate trace duration of each span
-	traceData = setTraceDuration(traceData)
-
-	// calculate average (predicte) duration of traces
-	traceData = calculateAverageDuration(traceData)
-
-	printJSON(traceData, "")
-}
-
 func calculateAverageDuration(traceData *TraceData) *TraceData {
 	var totalDuration int64
 	var totalPredictedDuration int64
@@ -208,4 +184,28 @@ func printJSON(data interface{}, fileName string) {
 			log.Fatalf("Error writing JSON to file: %v", err)
 		}
 	}
+}
+
+func GetTraceData(filename string) {
+	start := time.Now().Add(-1*time.Minute).UnixNano() / 1000 // 10 分鐘前
+	end := time.Now().UnixNano() / 1000                       // 現在時間
+
+	traceData, err := fetchTraces("frontend", start, end)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Populate ParentService and ParentOperation
+	traceData = populateParentFields(traceData)
+
+	// replace ProcessID with actual service Name
+	traceData = setServiceName(traceData)
+
+	// calculate trace duration of each span
+	traceData = setTraceDuration(traceData)
+
+	// calculate average (predicte) duration of traces
+	traceData = calculateAverageDuration(traceData)
+
+	printJSON(traceData, filename)
 }
