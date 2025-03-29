@@ -76,5 +76,6 @@ func fitness(traceData *TraceData, deploymentConfig map[string]map[string]int,
 		// Finally
 		traceData.Data[i].PredictedDuration = int64(predictDuration)
 	}
-	return 0.0 // TODO: calculate average of predicted dutations
+	calculateAverageDuration(traceData)
+	return float64(traceData.AveragePredictedDuration)
 }
