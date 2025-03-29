@@ -13,10 +13,12 @@ type TraceData struct {
 		Duration          int64  `json:"duration"`          // 微秒 (µs)
 		PredictedDuration int64  `json:"predictedDuration"` // 微秒 (µs)
 		Spans             []struct {
-			OperationName string `json:"operationName"`
-			ProcessID     string `json:"processID"`
-			StartTime     int64  `json:"startTime"`
-			Duration      int64  `json:"duration"`
+			OperationName   string `json:"operationName"`
+			ProcessID       string `json:"processID"`
+			ParentService   string `json:"parentService"`
+			ParentOperation string `json:"parentOperation"`
+			StartTime       int64  `json:"startTime"`
+			Duration        int64  `json:"duration"`
 		} `json:"spans"`
 	} `json:"data"`
 }
@@ -32,7 +34,7 @@ func loadJSONFile[T any](filename string, target *T) error {
 	return decoder.Decode(target)
 }
 
-func calculateProbability(deploymentConfig map[string]map[string]int, targetHost string) map[string]float64 {
+func CalculateProbability(deploymentConfig map[string]map[string]int, targetHost string) map[string]float64 {
 	// Initialize map to store total amounts of each service
 	totalServiceAmounts := make(map[string]int)
 
@@ -104,90 +106,6 @@ func fitness(traceData *TraceData, deploymentConfig map[string]map[string]int,
 		traceData.Data[i].PredictedDuration = int64(predictDuration)
 	}
 	return 0
-}
-
-func main() {
-	var traceData TraceData
-	processTimeMap := make(map[string]map[string]int64)      // [service][operation] 的 process time
-	processTimeCloudMap := make(map[string]map[string]int64) // [service][operation] 的 process time
-
-	if err := loadJSONFile("path_durations.json", &traceData); err != nil {
-		fmt.Println("Error loading path_durations.json:", err)
-		return
-	}
-
-	if err := loadJSONFile("self_durations.json", &processTimeMap); err != nil {
-		fmt.Println("Error loading self_durations.json:", err)
-		return
-	}
-
-	if err := loadJSONFile("self_durationsCloud.json", &processTimeCloudMap); err != nil {
-		fmt.Println("Error loading self_durationsCloud.json:", err)
-		return
-	}
-
-	var jsonStr = `{
-		"vm1": {
-			"cartservice": 1,
-			"checkoutservice": 1,
-			"currencyservice": 1,
-			"emailservice": 0,
-			"frontend": 0,
-			"paymentservice": 0,
-			"productcatalogservice": 0,
-			"recommendationservice": 0,
-			"redis-cart": 0,
-			"shippingservice": 0
-		},
-		"vm2": {
-			"cartservice": 0,
-			"checkoutservice": 0,
-			"currencyservice": 0,
-			"emailservice": 1,
-			"frontend": 1,
-			"paymentservice": 1,
-			"productcatalogservice": 0,
-			"recommendationservice": 0,
-			"redis-cart": 0,
-			"shippingservice": 0
-		},
-		"vm3": {
-			"cartservice": 0,
-			"checkoutservice": 0,
-			"currencyservice": 0,
-			"emailservice": 0,
-			"frontend": 0,
-			"paymentservice": 0,
-			"productcatalogservice": 1,
-			"recommendationservice": 1,
-			"redis-cart": 1,
-			"shippingservice": 1
-		},
-		"asus": {
-			"cartservice": 0,
-			"checkoutservice": 0,
-			"currencyservice": 0,
-			"emailservice": 3,
-			"frontend": 0,
-			"paymentservice": 0,
-			"productcatalogservice": 0,
-			"recommendationservice": 0,
-			"redis-cart": 0,
-			"shippingservice": 1
-		}
-	}`
-
-	var deploymentConfig map[string]map[string]int
-	err := json.Unmarshal([]byte(jsonStr), &deploymentConfig)
-	if err != nil {
-		log.Fatalf("Error unmarshaling JSON: %v", err)
-	}
-	probC := calculateProbability(deploymentConfig, "asus")
-	// printJSON(deploymentConfig, "")
-
-	fitness(&traceData, deploymentConfig, processTimeMap, processTimeCloudMap, probC)
-
-	printJSON(&traceData, "fitness.json")
 }
 
 func printJSON(data interface{}, fileName string) {
