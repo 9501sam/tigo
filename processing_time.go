@@ -81,7 +81,7 @@ func getOperations(service string) ([]string, error) {
 func getOperationSelfDuration(service, operation string) (int64, error) {
 	// url := fmt.Sprintf("%s/traces?service=%s&operation=%s&limit=10", jaegerBaseURL, service, operation)
 	encodedOperation := url.QueryEscape(operation)
-	url := fmt.Sprintf("%s/traces?service=%s&operation=%s&limit=10", jaegerBaseURL, service, encodedOperation)
+	url := fmt.Sprintf("%s/traces?service=%s&operation=%s&limit=100", jaegerBaseURL, service, encodedOperation)
 	resp, err := http.Get(url)
 	if err != nil {
 		return 0, fmt.Errorf("error fetching traces: %v", err)
@@ -135,8 +135,24 @@ func getOperationSelfDuration(service, operation string) (int64, error) {
 	return totalSelfDuration / count, nil
 }
 
+func printJSON(data interface{}, fileName string) {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		fmt.Println("Error marshalling JSON:", err)
+		return
+	}
+	fmt.Println(string(jsonData))
+
+	if fileName != "" {
+		err = os.WriteFile(fileName, jsonData, 0644)
+		if err != nil {
+			log.Fatalf("Error writing JSON to file: %v", err)
+		}
+	}
+}
+
 // 遍歷所有 service 和 operations，計算 self duration
-func main() {
+func GetProcessTime(filename string) {
 	services, err := getServices()
 	if err != nil {
 		fmt.Printf("Error getting services: %v\n", err)
@@ -144,7 +160,7 @@ func main() {
 	}
 
 	selfDurations := make(map[string]map[string]int64)
-	selfDurations["redis"] = make(map[string]int64)
+	selfDurations["redis-cart"] = make(map[string]int64)
 	for _, service := range services {
 
 		selfDurations[service] = make(map[string]int64)
@@ -162,7 +178,7 @@ func main() {
 			}
 
 			if operation == "RedisAddItem" || operation == "RedisEmptyCart" || operation == "RedisGetCart" {
-				selfDurations["redis"][operation] = selfDuration
+				selfDurations["redis-cart"][operation] = selfDuration
 			} else {
 				selfDurations[service][operation] = selfDuration
 			}
@@ -174,17 +190,5 @@ func main() {
 	delete(selfDurations, "jaeger-all-in-one")
 
 	// print the selfDurations
-	jsonData, err := json.MarshalIndent(selfDurations, "", "  ")
-	if err != nil {
-		fmt.Println("Error marshaling to JSON:", err)
-		return
-	}
-	fmt.Println(string(jsonData))
-
-	// save jsonData to a file
-	err = os.WriteFile("self_durations.json", jsonData, 0644)
-	if err != nil {
-		log.Fatalf("Error writing JSON to file: %v", err)
-
-	}
+	printJSON(selfDurations, filename)
 }
