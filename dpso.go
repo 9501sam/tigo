@@ -22,7 +22,7 @@ type DPSO struct {
 }
 
 var services = []string{
-	"adservice", "cartservice", "checkoutservice", "currencyservice", "emailservice",
+	"cartservice", "checkoutservice", "currencyservice", "emailservice",
 	"frontend", "paymentservice", "productcatalogservice", "recommendationservice",
 	"redis-cart", "shippingservice",
 }
@@ -31,7 +31,26 @@ var traceData TraceData
 var processTimeMap map[string]map[string]int64
 var processTimeCloudMap map[string]map[string]int64
 
+type Constraints struct {
+	CPU    int `json:"cpu"`
+	Memory int `json:"memory"`
+}
+
+type ResourceConstraints map[string]Constraints
+type NodeConstraints map[string]Constraints
+
+var serviceConstraints ResourceConstraints
+var nodeConstraints NodeConstraints
+
 func Init() {
+	loadJSONFile("resources_services.json", &serviceConstraints)
+	loadJSONFile("resources_nodes.json", &nodeConstraints)
+
+	// printJSON(serviceConstraints, "")
+	// printJSON(nodeConstraints, "")
+
+	solution := randomSolution()
+	checkConstraints(solution)
 }
 
 func NewDPSO(numParticles, maxIter int) *DPSO {
@@ -90,12 +109,14 @@ func (dpso *DPSO) Optimize() {
 					p.Solution[node][service] = int(sigmoid(p.Velocity[node][service])*9) + 1
 				}
 			}
+
+			// small is better (faster)
 			score := evaluate(p.Solution)
-			if score > p.BestScore {
+			if score < p.BestScore {
 				p.BestScore = score
 				copySolution(p.BestSolution, p.Solution)
 			}
-			if score > dpso.BestScore {
+			if score < dpso.BestScore {
 				dpso.BestScore = score
 				copySolution(dpso.BestSolution, p.Solution)
 			}
@@ -109,7 +130,7 @@ func randomSolution() map[string]map[string]int {
 	for _, node := range nodes {
 		solution[node] = make(map[string]int)
 		for _, service := range services {
-			solution[node][service] = rand.Intn(3) + 1
+			solution[node][service] = rand.Intn(3) + 1 // TODO: should be better decided
 		}
 	}
 	return solution
@@ -134,7 +155,44 @@ func copySolution(dst, src map[string]map[string]int) {
 	}
 }
 
+func checkConstraints(solution map[string]map[string]int) bool {
+	for _, node := range nodes {
+		for _, services := range solution {
+			totalCPU := 0
+			totalMemory := 0
+
+			// 計算該 VM 的資源使用量
+			for service, replicas := range services {
+				if constraint, exists := serviceConstraints[service]; exists {
+					totalCPU += constraint.CPU * replicas
+					totalMemory += constraint.Memory * replicas
+				} else {
+					fmt.Printf("Warning: Service %s not found in constraints\n", service)
+				}
+			}
+
+			// 取得該 VM 的資源限制
+			if nodeConstraint, exists := nodeConstraints[node]; exists {
+				if totalCPU > nodeConstraint.CPU {
+					fmt.Printf("Node %s exceeds CPU limit: %d/%d\n", node, totalCPU, nodeConstraint.CPU)
+					return false
+				}
+				if totalMemory > nodeConstraint.Memory {
+					fmt.Printf("Node %s exceeds Memory limit: %d/%d\n", node, totalMemory, nodeConstraint.Memory)
+					return false
+				}
+			} else {
+				fmt.Printf("Warning: Node %s not found in constraints\n", node)
+			}
+		}
+	}
+	return true
+}
+
 func evaluate(solution map[string]map[string]int) float64 {
+	if !checkConstraints(solution) {
+		return 999999999 // big number as penalty (means very slow)
+	}
 	// TODO: we should use fittness()
 	// 1. traceData: traces.json
 	// 2. deploymentConfig: solution
@@ -144,7 +202,11 @@ func evaluate(solution map[string]map[string]int) float64 {
 
 	probC := CalculateProbability(solution, "frontend")
 
-	return fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC)
+	var T = fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC)
+	if T < 0 {
+		fmt.Errorf("fitness() should not return negative value")
+	}
+	return T
 }
 
 func sigmoid(x float64) float64 {
@@ -153,6 +215,6 @@ func sigmoid(x float64) float64 {
 
 func RunDPSO() {
 	Init()
-	dpso := NewDPSO(3, 60)
-	dpso.Optimize()
+	// dpso := NewDPSO(3, 60)
+	// dpso.Optimize()
 }
