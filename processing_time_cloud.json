@@ -1,0 +1,68 @@
+{
+  "cartservice": {
+    "POST /grpc.health.v1.Health/Check": 73,
+    "POST /hipstershop.CartService/AddItem": 63,
+    "POST /hipstershop.CartService/EmptyCart": 73,
+    "POST /hipstershop.CartService/GetCart": 162
+  },
+  "checkoutservice": {
+    "grpc.health.v1.Health/Check": 16,
+    "hipstershop.CartService/EmptyCart": 180,
+    "hipstershop.CartService/GetCart": 209,
+    "hipstershop.CheckoutService/PlaceOrder": 4296,
+    "hipstershop.CurrencyService/Convert": 3735,
+    "hipstershop.EmailService/SendOrderConfirmation": 519,
+    "hipstershop.PaymentService/Charge": 1401,
+    "hipstershop.ProductCatalogService/GetProduct": 81,
+    "hipstershop.ShippingService/GetQuote": 117,
+    "hipstershop.ShippingService/ShipOrder": 131,
+    "opentelemetry.proto.collector.trace.v1.TraceService/Export": 997
+  },
+  "currencyservice": {
+    "grpc.grpc.health.v1.Health/Check": 27,
+    "grpc.hipstershop.CurrencyService/Convert": 58,
+    "grpc.hipstershop.CurrencyService/GetSupportedCurrencies": 127
+  },
+  "emailservice": {
+    "/grpc.health.v1.Health/Check": 58,
+    "/hipstershop.EmailService/SendOrderConfirmation": 94
+  },
+  "frontend": {
+    "frontend": 23094,
+    "hipstershop.CartService/AddItem": 156,
+    "hipstershop.CartService/GetCart": 653,
+    "hipstershop.CheckoutService/PlaceOrder": 4296,
+    "hipstershop.CurrencyService/Convert": 815,
+    "hipstershop.CurrencyService/GetSupportedCurrencies": 2676,
+    "hipstershop.ProductCatalogService/GetProduct": 108,
+    "hipstershop.ProductCatalogService/ListProducts": 340,
+    "hipstershop.RecommendationService/ListRecommendations": 622,
+    "hipstershop.ShippingService/GetQuote": 112,
+    "opentelemetry.proto.collector.trace.v1.TraceService/Export": 2838
+  },
+  "paymentservice": {
+    "grpc.grpc.health.v1.Health/Check": 68,
+    "grpc.hipstershop.PaymentService/Charge": 170
+  },
+  "productcatalogservice": {
+    "grpc.health.v1.Health/Check": 4,
+    "hipstershop.ProductCatalogService/GetProduct": 108,
+    "hipstershop.ProductCatalogService/ListProducts": 72,
+    "opentelemetry.proto.collector.trace.v1.TraceService/Export": 1106
+  },
+  "recommendationservice": {
+    "/grpc.health.v1.Health/Check": 43,
+    "/hipstershop.ProductCatalogService/ListProducts": 447,
+    "/hipstershop.RecommendationService/ListRecommendations": 190
+  },
+  "redis": {
+    "RedisAddItem": 286,
+    "RedisEmptyCart": 271,
+    "RedisGetCart": 508
+  },
+  "shippingservice": {
+    "grpc.health.v1.Health/Check": 6,
+    "hipstershop.ShippingService/GetQuote": 103,
+    "hipstershop.ShippingService/ShipOrder": 131
+  }
+}

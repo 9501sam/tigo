@@ -46,11 +46,12 @@ func Init() {
 	loadJSONFile("resources_services.json", &serviceConstraints)
 	loadJSONFile("resources_nodes.json", &nodeConstraints)
 
+	loadJSONFile("path_durations.json", &traceData)
+	loadJSONFile("processing_time_edge.json", &processTimeMap)
+	loadJSONFile("processing_time_cloud.json", &processTimeCloudMap)
+
 	// printJSON(serviceConstraints, "")
 	// printJSON(nodeConstraints, "")
-
-	solution := randomSolution()
-	checkConstraints(solution)
 }
 
 func NewDPSO(numParticles, maxIter int) *DPSO {
@@ -98,6 +99,7 @@ func (dpso *DPSO) Optimize() {
 	w, c1, c2 := 0.5, 1.5, 1.5
 
 	for iter := 0; iter < dpso.MaxIter; iter++ {
+		fmt.Printf("\nIteration %d start!!!\n", iter)
 		for i := range dpso.Particles {
 			p := &dpso.Particles[i]
 			for _, node := range nodes {
@@ -106,7 +108,20 @@ func (dpso *DPSO) Optimize() {
 					p.Velocity[node][service] = w*p.Velocity[node][service] +
 						c1*r1*float64(p.BestSolution[node][service]-p.Solution[node][service]) +
 						c2*r2*float64(dpso.BestSolution[node][service]-p.Solution[node][service])
-					p.Solution[node][service] = int(sigmoid(p.Velocity[node][service])*9) + 1
+					threshold := sigmoid(p.Velocity[node][service])
+
+					// fmt.Printf("threshold = %f\n", threshold)
+
+					p.Solution[node][service] = 0
+					if rand.Float64() < threshold {
+						p.Solution[node][service]++
+					}
+					if rand.Float64() < threshold {
+						p.Solution[node][service]++
+					}
+					if rand.Float64() < threshold {
+						p.Solution[node][service]++
+					}
 				}
 			}
 
@@ -121,7 +136,11 @@ func (dpso *DPSO) Optimize() {
 				copySolution(dpso.BestSolution, p.Solution)
 			}
 		}
-		fmt.Printf("Iteration %d: Best Score = %f\n", iter, dpso.BestScore)
+		fmt.Printf("Iteration %d: Best Score = %f, BestSolution till this iteration be like: \n", iter, dpso.BestScore)
+		if iter == dpso.MaxIter-1 {
+			printJSON(dpso.BestSolution, "")
+		}
+		fmt.Println("-----------------------------------------")
 	}
 }
 
@@ -129,9 +148,11 @@ func randomSolution() map[string]map[string]int {
 	solution := make(map[string]map[string]int)
 	for _, node := range nodes {
 		solution[node] = make(map[string]int)
-		for _, service := range services {
-			solution[node][service] = rand.Intn(3) + 1 // TODO: should be better decided
-		}
+	}
+
+	for _, service := range services {
+		selectedNode := nodes[rand.Intn(4)]
+		solution[selectedNode][service] = 1
 	}
 	return solution
 }
@@ -156,6 +177,9 @@ func copySolution(dst, src map[string]map[string]int) {
 }
 
 func checkConstraints(solution map[string]map[string]int) bool {
+	fmt.Println("enter checkConstraints()")
+	// printJSON(solution, "")
+
 	for _, node := range nodes {
 		for _, services := range solution {
 			totalCPU := 0
@@ -190,6 +214,10 @@ func checkConstraints(solution map[string]map[string]int) bool {
 }
 
 func evaluate(solution map[string]map[string]int) float64 {
+	probC := CalculateProbability(solution, "asus")
+
+	// fmt.Printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	// printJSON(probC, "")
 	if !checkConstraints(solution) {
 		return 999999999 // big number as penalty (means very slow)
 	}
@@ -200,7 +228,7 @@ func evaluate(solution map[string]map[string]int) float64 {
 	// 4. processTimeCloudMap: process_time_cloud.json
 	// 5. probC
 
-	probC := CalculateProbability(solution, "frontend")
+	// return 0.0
 
 	var T = fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC)
 	if T < 0 {
@@ -215,6 +243,13 @@ func sigmoid(x float64) float64 {
 
 func RunDPSO() {
 	Init()
-	// dpso := NewDPSO(3, 60)
-	// dpso.Optimize()
+
+	fmt.Println("enter NewDPSO()")
+	dpso := NewDPSO(30, 1000)
+	if dpso == nil {
+		fmt.Println("asdf")
+	}
+
+	fmt.Println("enter Optimize()!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	dpso.Optimize()
 }
