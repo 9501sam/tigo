@@ -55,7 +55,7 @@
     "/hipstershop.ProductCatalogService/ListProducts": 447,
     "/hipstershop.RecommendationService/ListRecommendations": 190
   },
-  "redis": {
+  "redis-cart": {
     "RedisAddItem": 286,
     "RedisEmptyCart": 271,
     "RedisGetCart": 508

@@ -9,9 +9,11 @@ type Solution map[string]map[string]int // Solution[node][service] = <replica>
 // var traceData TraceData
 
 func InitTIGO() {
-	loadJSONFile("path_durations.json", &traceData)
+	loadJSONFile("app.json", &traceData)
 	loadJSONFile("resources_services.json", &serviceConstraints)
 	loadJSONFile("resources_nodes.json", &nodeConstraints)
+	loadJSONFile("processing_time_edge.json", &processTimeMap)
+	loadJSONFile("processing_time_cloud.json", &processTimeCloudMap)
 }
 
 // 初始化路由
@@ -48,6 +50,8 @@ func cloudExecSchemeImprove(solution Solution, BS int) []Solution {
 				tempSolution := CopySolution(solution)
 				onCloudServices := make([]string, 0)
 				for t := j; t <= k; t++ {
+					// fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!")
+					// printJSON(traceData.Data[i].Spans[t], "")
 					onCloudServices = append(onCloudServices, traceData.Data[i].Spans[t].ServiceName)
 				}
 
@@ -68,7 +72,10 @@ func cloudExecSchemeImprove(solution Solution, BS int) []Solution {
 		}
 	}
 
-	return cands
+	if len(cands) < BS {
+		return cands
+	}
+	return cands[0:BS]
 }
 
 func calculateNeeded(service string) int {
@@ -109,7 +116,9 @@ func bestServer(solution Solution, service string) (string, int64) {
 			maxKey = key
 		}
 	}
-	return maxKey, maxValue / int64(nodeConstraints[service].CPU)
+	// fmt.Printf("service: %s\n", service)
+	// printJSON(nodeConstraints, "")
+	return maxKey, maxValue / int64(remaining[maxKey]) // TODO: something wrong
 }
 
 // 邊緣替換策略
@@ -129,13 +138,17 @@ func edgeReplacement(solution Solution) Solution {
 		deployed := 0
 		var prevBestS string
 		for deployed < needed {
-			bestS, maxInstances := bestServer(solution, service) // TODO: bestServer (most CPU)
+			fmt.Printf("\niteration start\n")
+			fmt.Printf("deployed = %d, needed = %d, service = %s\n", deployed, needed, service)
+
+			bestS, maxInstances := bestServer(solution, service)
+			fmt.Printf("bestS = %s, maxInstances = %d\n", bestS, maxInstances)
+
 			if prevBestS == bestS {
-				continue
+				break
 			}
 			prevBestS = bestS
 			count := min(int64(needed-deployed), maxInstances) // TODO: nodeCapability()
-			// TODO: do something to solution
 			solution[bestS][service] = int(count)
 			deployed += int(count)
 		}
@@ -152,11 +165,14 @@ func tigo(BS int) Solution {
 	for {
 		nextSls := []Solution{}
 		for _, sl := range tempSls {
+			fmt.Println("enter cloudExecSchemeImprove()")
 			cands := cloudExecSchemeImprove(sl, BS) // input solution and BS
+			fmt.Printf("cands = %+v\n", cands)
 			if len(cands) == 0 {
 				SLs = append(SLs, sl)
 			} else {
 				for _, cand := range cands {
+					fmt.Println("enter edgeReplacement()")
 					Xi1 := edgeReplacement(cand)
 					nextSls = append(nextSls, Xi1)
 				}
@@ -180,5 +196,6 @@ func RunTIGO() {
 	InitTIGO()
 	BS := 5 // 設定 Branch Search Size
 	bestSolution := tigo(BS)
-	fmt.Println("Best Solution:", bestSolution)
+	fmt.Println("Best Solution:")
+	printJSON(bestSolution, "")
 }

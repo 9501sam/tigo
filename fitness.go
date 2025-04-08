@@ -51,24 +51,24 @@ func fitness(traceData *TraceData, deploymentConfig map[string]map[string]int,
 			var processTimeOnCloud int64
 			var ok bool
 
-			if processTimeOnEdge, ok = processTimeMap[span.ProcessID][span.OperationName]; ok {
+			if processTimeOnEdge, ok = processTimeMap[span.ServiceName][span.OperationName]; ok {
 			} else {
-				fmt.Println("Error: No response time found for operation ", span.OperationName, " in process ", span.ProcessID)
+				fmt.Println("Error: No response time found for operation ", span.OperationName, " in process ", span.ServiceName)
 			}
 
-			if processTimeOnEdge, ok = processTimeCloudMap[span.ProcessID][span.OperationName]; ok {
+			if processTimeOnEdge, ok = processTimeCloudMap[span.ServiceName][span.OperationName]; ok {
 			} else {
-				fmt.Println("Error: No response time found for operation ", span.OperationName, " in process ", span.ProcessID)
+				fmt.Println("Error: No response time found for operation ", span.OperationName, " in process ", span.ServiceName)
 			}
 
 			// add response time (edge or cloud)
-			predictDuration += probC[span.ProcessID]*float64(processTimeOnCloud) + (1-probC[span.ProcessID])*float64(processTimeOnEdge)
+			predictDuration += probC[span.ServiceName]*float64(processTimeOnCloud) + (1-probC[span.ServiceName])*float64(processTimeOnEdge)
 		}
 
 		// TODO: might be more accurate
 		var networkDelay float64 = 50 * 1000 // 50 ms
 		for _, span := range traceData.Data[i].Spans {
-			if span.ProcessID != "frontend" {
+			if span.ServiceName != "frontend" {
 				predictDuration += networkDelay
 			}
 		}

@@ -166,7 +166,7 @@ func copySolution(dst, src map[string]map[string]int) {
 }
 
 func checkConstraints(solution map[string]map[string]int) bool {
-	fmt.Println("enter checkConstraints()")
+	// fmt.Println("enter checkConstraints()")
 	// printJSON(solution, "")
 
 	for _, node := range nodes {
