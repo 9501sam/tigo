@@ -31,17 +31,6 @@ var traceData TraceData
 var processTimeMap map[string]map[string]int64
 var processTimeCloudMap map[string]map[string]int64
 
-type Constraints struct {
-	CPU    int `json:"cpu"`
-	Memory int `json:"memory"`
-}
-
-type ResourceConstraints map[string]Constraints
-type NodeConstraints map[string]Constraints
-
-var serviceConstraints ResourceConstraints
-var nodeConstraints NodeConstraints
-
 func Init() {
 	loadJSONFile("resources_services.json", &serviceConstraints)
 	loadJSONFile("resources_nodes.json", &nodeConstraints)

@@ -69,3 +69,14 @@ func printJSON(data interface{}, fileName string) {
 		}
 	}
 }
+
+type Constraints struct {
+	CPU    int `json:"cpu"`
+	Memory int `json:"memory"`
+}
+
+type ResourceConstraints map[string]Constraints
+type NodeConstraints map[string]Constraints
+
+var serviceConstraints ResourceConstraints
+var nodeConstraints NodeConstraints

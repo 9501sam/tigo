@@ -39,7 +39,7 @@ func cloudExecSchemeImprove(solution Solution, BS int) []Solution {
 	prevT := evaluate(solution)
 	cands := []Solution{}
 	for i := range traceData.Data {
-		var predictDuration float64 = 0
+		// var predictDuration float64 = 0
 
 		L := len(traceData.Data[i].Spans)
 		for j := 0; j < L; j++ {
@@ -48,7 +48,7 @@ func cloudExecSchemeImprove(solution Solution, BS int) []Solution {
 				tempSolution := CopySolution(solution)
 				onCloudServices := make([]string, 0)
 				for t := j; t <= k; t++ {
-					onCloudServices := append(onCloudServices, traceData.Data[i].Spans[t].ServiceName)
+					onCloudServices = append(onCloudServices, traceData.Data[i].Spans[t].ServiceName)
 				}
 
 				for _, service := range services {
@@ -60,9 +60,9 @@ func cloudExecSchemeImprove(solution Solution, BS int) []Solution {
 				}
 
 				// evaluate a solution
-				tempT := evalutate(tempSolution)
+				tempT := evaluate(tempSolution)
 				if tempT < prevT {
-					cands := append(cands, tempSolution)
+					cands = append(cands, tempSolution)
 				}
 			}
 		}
@@ -87,55 +87,61 @@ func calculateNeeded(service string) int {
 	return totalNumber / 100
 }
 
-func bestServer(solution Solution, service string) (string, int) {
+func bestServer(solution Solution, service string) (string, int64) {
 	edgeNodes := []string{"vm1", "vm2", "vm3"}
 
 	remaining := make(map[string]int64)
 	for _, e := range edgeNodes {
-		remaining = nodeConstraint[e].CPU
+		remaining[e] = int64(nodeConstraints[e].CPU)
 	}
 
 	for _, node := range nodes {
 		for _, service := range services {
-			remaining[node] += -(solution[node][service] * serviceConstraints[service])
+			remaining[node] += -(int64(solution[node][service]) * int64(serviceConstraints[service].CPU))
 		}
 	}
 
 	var maxKey string
-	maxValue := 0
+	maxValue := int64(0)
 	for key, value := range remaining {
 		if value > maxValue {
 			maxValue = value
 			maxKey = key
 		}
 	}
-	return maxKey, maxValue / nodeConstraint[service].CPU
+	return maxKey, maxValue / int64(nodeConstraints[service].CPU)
 }
 
 // 邊緣替換策略
 func edgeReplacement(solution Solution) Solution {
-	onCloudServices := make([]string, 0) // TODO: get from solution
-	for service, instanceNumber := range solution["asus"] {
-		if instanceNumber != 0 {
-			onCloudServices := append(onCloudServices, service)
-		}
-	}
+	// onCloudServices := make([]string, 0) // TODO: get from solution
+	// for service, instanceNumber := range solution["asus"] {
+	// 	if instanceNumber != 0 {
+	// 		onCloudServices := append(onCloudServices, service)
+	// 	}
+	// }
 
 	// Step 1: Calculate total required instances based on user requests and processing capacity
-	requiredInstances := make(map[string]int) // ServiceName -> number of instances needed
+	// requiredInstances := make(map[string]int) // ServiceName -> number of instances needed
 
 	for _, service := range services {
 		needed := calculateNeeded(service) // TODO: calculateNeeded
 		deployed := 0
+		var prevBestS string
 		for deployed < needed {
 			bestS, maxInstances := bestServer(solution, service) // TODO: bestServer (most CPU)
-			count := min(needed-deployed, maxInstances)          // TODO: nodeCapability()
+			if prevBestS == bestS {
+				continue
+			}
+			prevBestS = bestS
+			count := min(int64(needed-deployed), maxInstances) // TODO: nodeCapability()
 			// TODO: do something to solution
-			solution[bestS][service] = count
+			solution[bestS][service] = int(count)
+			deployed += int(count)
 		}
 	}
 
-	return nil
+	return solution
 }
 
 func tigo(BS int) Solution {
