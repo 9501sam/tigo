@@ -6,17 +6,9 @@ import (
 
 type Solution map[string]map[string]int // Solution[node][service] = <replica>
 
-type Constraints struct {
-	CPU    int `json:"cpu"`
-	Memory int `json:"memory"`
-}
+// var traceData TraceData
 
-var traceData TraceData
-
-type ResourceConstraints map[string]Constraints
-type NodeConstraints map[string]Constraints
-
-func Init() {
+func InitTIGO() {
 	loadJSONFile("path_durations.json", &traceData)
 	loadJSONFile("resources_services.json", &serviceConstraints)
 	loadJSONFile("resources_nodes.json", &nodeConstraints)
@@ -54,19 +46,18 @@ func cloudExecSchemeImprove(solution Solution, BS int) []Solution {
 			for k := j; k < L; k++ {
 				// build a solution (tempSolution)
 				tempSolution := CopySolution(solution)
-				onCloudServices := []string
+				onCloudServices := make([]string, 0)
 				for t := j; t <= k; t++ {
 					onCloudServices := append(onCloudServices, traceData.Data[i].Spans[t].ServiceName)
 				}
 
-				for _, service := range onCloudServices {
-					for _, node := range nodes {
-						tempSolution[node][service] = 0
-					}
-					tempSolution["asus"][service] = 1
+				for _, service := range services {
+					tempSolution["asus"][service] = 0
 				}
 
-				// tempSolution[][]
+				for _, service := range onCloudServices {
+					tempSolution["asus"][service] = 1
+				}
 
 				// evaluate a solution
 				tempT := evalutate(tempSolution)
@@ -80,7 +71,7 @@ func cloudExecSchemeImprove(solution Solution, BS int) []Solution {
 	return cands
 }
 
-func calculateNeeded(service string) {
+func calculateNeeded(service string) int {
 	totalNumber := 0
 
 	for i := range traceData.Data {
@@ -92,25 +83,38 @@ func calculateNeeded(service string) {
 		}
 	}
 
-	// TODO: should be better
-
+	// TODO: the mu 100 should be better decided
 	return totalNumber / 100
 }
 
-func bestServer(solution Solution, service string) {
-	for _, node := range nodes {
-		for _, services := range solution {
-			totalCPU := 0
-			totalMemory := 0
+func bestServer(solution Solution, service string) (string, int) {
+	edgeNodes := []string{"vm1", "vm2", "vm3"}
 
-			// TODO
+	remaining := make(map[string]int64)
+	for _, e := range edgeNodes {
+		remaining = nodeConstraint[e].CPU
+	}
+
+	for _, node := range nodes {
+		for _, service := range services {
+			remaining[node] += -(solution[node][service] * serviceConstraints[service])
 		}
 	}
+
+	var maxKey string
+	maxValue := 0
+	for key, value := range remaining {
+		if value > maxValue {
+			maxValue = value
+			maxKey = key
+		}
+	}
+	return maxKey, maxValue / nodeConstraint[service].CPU
 }
 
 // 邊緣替換策略
 func edgeReplacement(solution Solution) Solution {
-	onCloudServices := []string // TODO: get from solution
+	onCloudServices := make([]string, 0) // TODO: get from solution
 	for service, instanceNumber := range solution["asus"] {
 		if instanceNumber != 0 {
 			onCloudServices := append(onCloudServices, service)
@@ -124,8 +128,8 @@ func edgeReplacement(solution Solution) Solution {
 		needed := calculateNeeded(service) // TODO: calculateNeeded
 		deployed := 0
 		for deployed < needed {
-			bestS, maxInstances := bestServer(solution) // TODO: bestServer (most CPU)
-			count := min(needed-deployed, maxInstances) // TODO: nodeCapability()
+			bestS, maxInstances := bestServer(solution, service) // TODO: bestServer (most CPU)
+			count := min(needed-deployed, maxInstances)          // TODO: nodeCapability()
 			// TODO: do something to solution
 			solution[bestS][service] = count
 		}
@@ -166,25 +170,8 @@ func tigo(BS int) Solution {
 	return SLs[0]
 }
 
-func evaluate(solution map[string]map[string]int) float64 {
-	probC := CalculateProbability(solution, "asus")
-
-	if !checkConstraints(solution) {
-		return 999999999 // big number as penalty (means very slow)
-
-	}
-
-	var T = fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC)
-	if T < 0 {
-		fmt.Errorf("fitness() should not return negative value")
-
-	}
-	return T
-
-}
-
 func RunTIGO() {
-	Init()
+	InitTIGO()
 	BS := 5 // 設定 Branch Search Size
 	bestSolution := tigo(BS)
 	fmt.Println("Best Solution:", bestSolution)
