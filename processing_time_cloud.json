@@ -1,68 +1,68 @@
 {
   "cartservice": {
-    "POST /grpc.health.v1.Health/Check": 73,
-    "POST /hipstershop.CartService/AddItem": 63,
-    "POST /hipstershop.CartService/EmptyCart": 73,
-    "POST /hipstershop.CartService/GetCart": 162
+    "POST /grpc.health.v1.Health/Check": 116,
+    "POST /hipstershop.CartService/AddItem": 99,
+    "POST /hipstershop.CartService/EmptyCart": 108,
+    "POST /hipstershop.CartService/GetCart": 155
   },
   "checkoutservice": {
-    "grpc.health.v1.Health/Check": 16,
-    "hipstershop.CartService/EmptyCart": 180,
-    "hipstershop.CartService/GetCart": 209,
-    "hipstershop.CheckoutService/PlaceOrder": 4296,
-    "hipstershop.CurrencyService/Convert": 3735,
-    "hipstershop.EmailService/SendOrderConfirmation": 519,
-    "hipstershop.PaymentService/Charge": 1401,
-    "hipstershop.ProductCatalogService/GetProduct": 81,
-    "hipstershop.ShippingService/GetQuote": 117,
-    "hipstershop.ShippingService/ShipOrder": 131,
-    "opentelemetry.proto.collector.trace.v1.TraceService/Export": 997
+    "grpc.health.v1.Health/Check": 19,
+    "hipstershop.CartService/EmptyCart": 192,
+    "hipstershop.CartService/GetCart": 367,
+    "hipstershop.CheckoutService/PlaceOrder": 4189,
+    "hipstershop.CurrencyService/Convert": 2216,
+    "hipstershop.EmailService/SendOrderConfirmation": 578,
+    "hipstershop.PaymentService/Charge": 1532,
+    "hipstershop.ProductCatalogService/GetProduct": 153,
+    "hipstershop.ShippingService/GetQuote": 141,
+    "hipstershop.ShippingService/ShipOrder": 111,
+    "opentelemetry.proto.collector.trace.v1.TraceService/Export": 4160
   },
   "currencyservice": {
-    "grpc.grpc.health.v1.Health/Check": 27,
-    "grpc.hipstershop.CurrencyService/Convert": 58,
-    "grpc.hipstershop.CurrencyService/GetSupportedCurrencies": 127
+    "grpc.grpc.health.v1.Health/Check": 90,
+    "grpc.hipstershop.CurrencyService/Convert": 87,
+    "grpc.hipstershop.CurrencyService/GetSupportedCurrencies": 204
   },
   "emailservice": {
-    "/grpc.health.v1.Health/Check": 58,
-    "/hipstershop.EmailService/SendOrderConfirmation": 94
+    "/grpc.health.v1.Health/Check": 24,
+    "/hipstershop.EmailService/SendOrderConfirmation": 99
   },
   "frontend": {
-    "frontend": 23094,
-    "hipstershop.CartService/AddItem": 156,
-    "hipstershop.CartService/GetCart": 653,
-    "hipstershop.CheckoutService/PlaceOrder": 4296,
-    "hipstershop.CurrencyService/Convert": 815,
-    "hipstershop.CurrencyService/GetSupportedCurrencies": 2676,
-    "hipstershop.ProductCatalogService/GetProduct": 108,
-    "hipstershop.ProductCatalogService/ListProducts": 340,
-    "hipstershop.RecommendationService/ListRecommendations": 622,
-    "hipstershop.ShippingService/GetQuote": 112,
-    "opentelemetry.proto.collector.trace.v1.TraceService/Export": 2838
+    "frontend": 1171,
+    "hipstershop.CartService/AddItem": 709,
+    "hipstershop.CartService/GetCart": 630,
+    "hipstershop.CheckoutService/PlaceOrder": 4189,
+    "hipstershop.CurrencyService/Convert": 4604,
+    "hipstershop.CurrencyService/GetSupportedCurrencies": 5745,
+    "hipstershop.ProductCatalogService/GetProduct": 172,
+    "hipstershop.ProductCatalogService/ListProducts": 450,
+    "hipstershop.RecommendationService/ListRecommendations": 1207,
+    "hipstershop.ShippingService/GetQuote": 130,
+    "opentelemetry.proto.collector.trace.v1.TraceService/Export": 17306
   },
   "paymentservice": {
-    "grpc.grpc.health.v1.Health/Check": 68,
-    "grpc.hipstershop.PaymentService/Charge": 170
+    "grpc.grpc.health.v1.Health/Check": 107,
+    "grpc.hipstershop.PaymentService/Charge": 177
   },
   "productcatalogservice": {
-    "grpc.health.v1.Health/Check": 4,
-    "hipstershop.ProductCatalogService/GetProduct": 108,
-    "hipstershop.ProductCatalogService/ListProducts": 72,
-    "opentelemetry.proto.collector.trace.v1.TraceService/Export": 1106
+    "grpc.health.v1.Health/Check": 15,
+    "hipstershop.ProductCatalogService/GetProduct": 171,
+    "hipstershop.ProductCatalogService/ListProducts": 150,
+    "opentelemetry.proto.collector.trace.v1.TraceService/Export": 9574
   },
   "recommendationservice": {
-    "/grpc.health.v1.Health/Check": 43,
-    "/hipstershop.ProductCatalogService/ListProducts": 447,
-    "/hipstershop.RecommendationService/ListRecommendations": 190
+    "/grpc.health.v1.Health/Check": 51,
+    "/hipstershop.ProductCatalogService/ListProducts": 696,
+    "/hipstershop.RecommendationService/ListRecommendations": 326
   },
   "redis-cart": {
-    "RedisAddItem": 286,
-    "RedisEmptyCart": 271,
-    "RedisGetCart": 508
+    "RedisAddItem": 617,
+    "RedisEmptyCart": 227,
+    "RedisGetCart": 557
   },
   "shippingservice": {
-    "grpc.health.v1.Health/Check": 6,
-    "hipstershop.ShippingService/GetQuote": 103,
-    "hipstershop.ShippingService/ShipOrder": 131
+    "grpc.health.v1.Health/Check": 19,
+    "hipstershop.ShippingService/GetQuote": 132,
+    "hipstershop.ShippingService/ShipOrder": 111
   }
 }
