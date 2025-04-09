@@ -39,12 +39,12 @@
         "cartservice": 0,
         "checkoutservice": 0,
         "currencyservice": 0,
-        "emailservice": 3,
+        "emailservice": 0,
         "frontend": 0,
         "paymentservice": 0,
         "productcatalogservice": 0,
         "recommendationservice": 0,
         "redis-cart": 0,
-        "shippingservice": 1
+        "shippingservice": 0
     }
 }

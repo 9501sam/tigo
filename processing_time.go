@@ -79,7 +79,7 @@ func getOperations(service string) ([]string, error) {
 func getOperationSelfDuration(service, operation string) (int64, error) {
 	// url := fmt.Sprintf("%s/traces?service=%s&operation=%s&limit=10", jaegerBaseURL, service, operation)
 	encodedOperation := url.QueryEscape(operation)
-	url := fmt.Sprintf("%s/traces?service=%s&operation=%s&limit=100", jaegerBaseURL, service, encodedOperation)
+	url := fmt.Sprintf("%s/traces?service=%s&operation=%s&limit=500", jaegerBaseURL, service, encodedOperation)
 	resp, err := http.Get(url)
 	if err != nil {
 		return 0, fmt.Errorf("error fetching traces: %v", err)

@@ -32,10 +32,10 @@ var processTimeMap map[string]map[string]int64
 var processTimeCloudMap map[string]map[string]int64
 
 func Init() {
+	loadJSONFile("app.json", &traceData)
 	loadJSONFile("resources_services.json", &serviceConstraints)
 	loadJSONFile("resources_nodes.json", &nodeConstraints)
 
-	loadJSONFile("path_durations.json", &traceData)
 	loadJSONFile("processing_time_edge.json", &processTimeMap)
 	loadJSONFile("processing_time_cloud.json", &processTimeCloudMap)
 
@@ -241,4 +241,7 @@ func RunDPSO() {
 
 	fmt.Println("enter Optimize()!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	dpso.Optimize()
+
+	printJSON(dpso.BestSolution, "dpso_solution.json")
+	UpDateDeploymentsByJSON("dpso_solution.json")
 }

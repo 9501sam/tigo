@@ -91,7 +91,7 @@ func calculateNeeded(service string) int {
 	}
 
 	// TODO: the mu 100 should be better decided
-	return totalNumber / 100
+	return totalNumber / 10
 }
 
 func bestServer(solution Solution, service string) (string, int64) {
@@ -197,5 +197,6 @@ func RunTIGO() {
 	BS := 5 // 設定 Branch Search Size
 	bestSolution := tigo(BS)
 	fmt.Println("Best Solution:")
-	printJSON(bestSolution, "")
+	printJSON(bestSolution, "tigo_solution.json")
+	UpDateDeploymentsByJSON("tigo_solution.json")
 }
