@@ -1,0 +1,43 @@
+{
+  "cartservice": {
+    "cpu": 200,
+    "memory": 64
+  },
+  "checkoutservice": {
+    "cpu": 100,
+    "memory": 64
+  },
+  "currencyservice": {
+    "cpu": 100,
+    "memory": 64
+  },
+  "emailservice": {
+    "cpu": 100,
+    "memory": 64
+  },
+  "frontend": {
+    "cpu": 100,
+    "memory": 64
+  },
+  "paymentservice": {
+    "cpu": 100,
+    "memory": 64
+  },
+  "productcatalogservice": {
+    "cpu": 100,
+    "memory": 64
+  },
+  "recommendationservice": {
+    "cpu": 100,
+    "memory": 220
+  },
+  "redis-cart": {
+    "cpu": 125,
+    "memory": 256
+  },
+  "shippingservice": {
+    "cpu": 100,
+    "memory": 64
+  }
+}
+
