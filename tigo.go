@@ -24,6 +24,9 @@ func initRouting() ([]int, int) {
 
 func CopySolution(original Solution) Solution {
 	copy := make(Solution)
+	for _, node := range nodes {
+		copy[node] = make(map[string]int)
+	}
 
 	for outerKey, innerMap := range original {
 		innerCopy := make(map[string]int)
@@ -31,7 +34,6 @@ func CopySolution(original Solution) Solution {
 			innerCopy[innerKey] = value
 		}
 		copy[outerKey] = innerCopy
-
 	}
 	return copy
 }
@@ -50,8 +52,6 @@ func cloudExecSchemeImprove(solution Solution, BS int) []Solution {
 				tempSolution := CopySolution(solution)
 				onCloudServices := make([]string, 0)
 				for t := j; t <= k; t++ {
-					// fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!")
-					// printJSON(traceData.Data[i].Spans[t], "")
 					onCloudServices = append(onCloudServices, traceData.Data[i].Spans[t].ServiceName)
 				}
 
@@ -118,7 +118,9 @@ func bestServer(solution Solution, service string) (string, int64) {
 	}
 	// fmt.Printf("service: %s\n", service)
 	// printJSON(nodeConstraints, "")
-	return maxKey, maxValue / int64(remaining[maxKey]) // TODO: something wrong
+	// fmt.Printf("maxValue = %d, remaining[maxKey] = %d\n", maxValue, remaining[maxKey])
+	// return maxKey, maxValue / int64(remaining[maxKey]) // TODO: something wrong
+	return maxKey, maxValue / int64(serviceConstraints[service].CPU) // TODO: something wrong
 }
 
 // 邊緣替換策略
@@ -132,6 +134,7 @@ func edgeReplacement(solution Solution) Solution {
 
 	// Step 1: Calculate total required instances based on user requests and processing capacity
 	// requiredInstances := make(map[string]int) // ServiceName -> number of instances needed
+	retSolution := CopySolution(solution)
 
 	for _, service := range services {
 		needed := calculateNeeded(service) // TODO: calculateNeeded
@@ -141,7 +144,7 @@ func edgeReplacement(solution Solution) Solution {
 			fmt.Printf("\niteration start\n")
 			fmt.Printf("deployed = %d, needed = %d, service = %s\n", deployed, needed, service)
 
-			bestS, maxInstances := bestServer(solution, service)
+			bestS, maxInstances := bestServer(retSolution, service)
 			fmt.Printf("bestS = %s, maxInstances = %d\n", bestS, maxInstances)
 
 			if prevBestS == bestS {
@@ -149,12 +152,14 @@ func edgeReplacement(solution Solution) Solution {
 			}
 			prevBestS = bestS
 			count := min(int64(needed-deployed), maxInstances) // TODO: nodeCapability()
-			solution[bestS][service] = int(count)
+			fmt.Printf("count = %d, needed = %d, deployed = %d, needed-deployed = %d, maxInstances = %d\n",
+				count, needed, deployed, needed-deployed, maxInstances)
+			retSolution[bestS][service] = int(count)
 			deployed += int(count)
 		}
 	}
 
-	return solution
+	return retSolution
 }
 
 func tigo(BS int) Solution {
@@ -165,14 +170,14 @@ func tigo(BS int) Solution {
 	for {
 		nextSls := []Solution{}
 		for _, sl := range tempSls {
-			fmt.Println("enter cloudExecSchemeImprove()")
+			// fmt.Println("enter cloudExecSchemeImprove()")
 			cands := cloudExecSchemeImprove(sl, BS) // input solution and BS
-			fmt.Printf("cands = %+v\n", cands)
+			// fmt.Printf("cands = %+v\n", cands)
 			if len(cands) == 0 {
 				SLs = append(SLs, sl)
 			} else {
 				for _, cand := range cands {
-					fmt.Println("enter edgeReplacement()")
+					// fmt.Println("enter edgeReplacement()")
 					Xi1 := edgeReplacement(cand)
 					nextSls = append(nextSls, Xi1)
 				}
@@ -182,11 +187,24 @@ func tigo(BS int) Solution {
 		if len(nextSls) == 0 {
 			break
 		} else {
+			fmt.Printf("len(nextSls) = %d\n", len(nextSls))
+			// fmt.Printf("\nnextSls[%d] :\n", len(nextSls)-1)
+			for i, s := range nextSls {
+				fmt.Printf("\n\nnextSls[%d]: \n", i)
+				printJSON(s, "")
+			}
+			printJSON(nextSls[len(nextSls)-1], "")
 			if len(nextSls) > BS {
 				nextSls = nextSls[:BS]
 			}
 			tempSls = nextSls
 		}
+	}
+
+	fmt.Printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~len(SLs) = %d\n", len(SLs))
+	for i, s := range SLs {
+		fmt.Printf("\n\nSLs[%d]: \n", i)
+		printJSON(s, "")
 	}
 
 	return SLs[0]
@@ -197,6 +215,7 @@ func RunTIGO() {
 	BS := 5 // 設定 Branch Search Size
 	bestSolution := tigo(BS)
 	fmt.Println("Best Solution:")
-	printJSON(bestSolution, "tigo_solution.json")
-	UpDateDeploymentsByJSON("tigo_solution.json")
+	printJSON(bestSolution, "")
+	// printJSON(bestSolution, "tigo_solution.json")
+	// UpDateDeploymentsByJSON("tigo_solution.json")
 }
