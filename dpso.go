@@ -234,7 +234,7 @@ func RunDPSO() {
 	Init()
 
 	fmt.Println("enter NewDPSO()")
-	dpso := NewDPSO(30, 1000)
+	dpso := NewDPSO(30, 100)
 	if dpso == nil {
 		fmt.Println("asdf")
 	}
@@ -243,5 +243,5 @@ func RunDPSO() {
 	dpso.Optimize()
 
 	printJSON(dpso.BestSolution, "dpso_solution.json")
-	UpDateDeploymentsByJSON("dpso_solution.json")
+	// UpDateDeploymentsByJSON("dpso_solution.json")
 }
