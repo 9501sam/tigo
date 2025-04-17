@@ -1,0 +1,34 @@
+{
+  "asus": {
+    "cartservice": 1,
+    "checkoutservice": 0,
+    "currencyservice": 1,
+    "emailservice": 0,
+    "frontend": 1,
+    "paymentservice": 0,
+    "productcatalogservice": 1,
+    "recommendationservice": 1,
+    "redis-cart": 1,
+    "shippingservice": 1
+  },
+  "vm1": {
+    "currencyservice": 5,
+    "frontend": 6,
+    "productcatalogservice": 9
+  },
+  "vm2": {
+    "cartservice": 1,
+    "checkoutservice": 1,
+    "currencyservice": 5,
+    "emailservice": 1,
+    "frontend": 4,
+    "paymentservice": 1,
+    "productcatalogservice": 1,
+    "recommendationservice": 1,
+    "redis-cart": 1
+  },
+  "vm3": {
+    "cartservice": 1,
+    "frontend": 18
+  }
+}
