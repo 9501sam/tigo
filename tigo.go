@@ -91,7 +91,7 @@ func calculateNeeded(service string) int {
 	}
 
 	// TODO: the mu 100 should be better decided
-	return totalNumber / 10
+	return totalNumber / 50
 }
 
 func bestServer(solution Solution, service string) (string, int64) {
@@ -116,24 +116,11 @@ func bestServer(solution Solution, service string) (string, int64) {
 			maxKey = key
 		}
 	}
-	// fmt.Printf("service: %s\n", service)
-	// printJSON(nodeConstraints, "")
-	// fmt.Printf("maxValue = %d, remaining[maxKey] = %d\n", maxValue, remaining[maxKey])
-	// return maxKey, maxValue / int64(remaining[maxKey]) // TODO: something wrong
-	return maxKey, maxValue / int64(serviceConstraints[service].CPU) // TODO: something wrong
+	return maxKey, maxValue / int64(serviceConstraints[service].CPU)
 }
 
 // 邊緣替換策略
 func edgeReplacement(solution Solution) Solution {
-	// onCloudServices := make([]string, 0) // TODO: get from solution
-	// for service, instanceNumber := range solution["asus"] {
-	// 	if instanceNumber != 0 {
-	// 		onCloudServices := append(onCloudServices, service)
-	// 	}
-	// }
-
-	// Step 1: Calculate total required instances based on user requests and processing capacity
-	// requiredInstances := make(map[string]int) // ServiceName -> number of instances needed
 	retSolution := CopySolution(solution)
 
 	for _, service := range services {
@@ -170,9 +157,7 @@ func tigo(BS int) Solution {
 	for {
 		nextSls := []Solution{}
 		for _, sl := range tempSls {
-			// fmt.Println("enter cloudExecSchemeImprove()")
 			cands := cloudExecSchemeImprove(sl, BS) // input solution and BS
-			// fmt.Printf("cands = %+v\n", cands)
 			if len(cands) == 0 {
 				SLs = append(SLs, sl)
 			} else {
@@ -188,12 +173,12 @@ func tigo(BS int) Solution {
 			break
 		} else {
 			fmt.Printf("len(nextSls) = %d\n", len(nextSls))
-			// fmt.Printf("\nnextSls[%d] :\n", len(nextSls)-1)
 			for i, s := range nextSls {
 				fmt.Printf("\n\nnextSls[%d]: \n", i)
 				printJSON(s, "")
 			}
 			printJSON(nextSls[len(nextSls)-1], "")
+			// TODO: SORT HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			if len(nextSls) > BS {
 				nextSls = nextSls[:BS]
 			}
@@ -201,21 +186,22 @@ func tigo(BS int) Solution {
 		}
 	}
 
-	fmt.Printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~len(SLs) = %d\n", len(SLs))
+	fmt.Printf("len(SLs) = %d\n", len(SLs))
 	for i, s := range SLs {
 		fmt.Printf("\n\nSLs[%d]: \n", i)
 		printJSON(s, "")
 	}
 
-	return SLs[0]
+	// TODO: SORT HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	return SLs[4]
 }
 
 func RunTIGO() {
 	InitTIGO()
-	BS := 5 // 設定 Branch Search Size
+	BS := 5 // Branch Search Size
 	bestSolution := tigo(BS)
 	fmt.Println("Best Solution:")
 	printJSON(bestSolution, "")
-	// printJSON(bestSolution, "tigo_solution.json")
-	// UpDateDeploymentsByJSON("tigo_solution.json")
+	printJSON(bestSolution, "tigo_solution2.json")
+	UpDateDeploymentsByJSON("tigo_solution2.json")
 }
