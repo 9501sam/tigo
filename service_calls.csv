@@ -1,0 +1,15 @@
+from,to,count
+checkoutservice,emailservice,3
+frontend,currencyservice,270
+frontend,shippingservice,21
+cartservice,redis-cart,83
+checkoutservice,paymentservice,3
+checkoutservice,shippingservice,6
+checkoutservice,productcatalogservice,16
+frontend,checkoutservice,3
+recommendationservice,productcatalogservice,62
+frontend,productcatalogservice,402
+frontend,recommendationservice,62
+frontend,cartservice,77
+none,frontend,100
+checkoutservice,cartservice,6

@@ -30,6 +30,7 @@ var services = []string{
 var traceData TraceData
 var processTimeMap map[string]map[string]int64
 var processTimeCloudMap map[string]map[string]int64
+var callCounts map[CallKey]int
 
 func Init() {
 	loadJSONFile("app.json", &traceData)
@@ -39,8 +40,7 @@ func Init() {
 	loadJSONFile("processing_time_edge.json", &processTimeMap)
 	loadJSONFile("processing_time_cloud.json", &processTimeCloudMap)
 
-	// printJSON(serviceConstraints, "")
-	// printJSON(nodeConstraints, "")
+	callCounts = CountServiceCalls(traceData)
 }
 
 func NewDPSO(numParticles, maxIter int) *DPSO {
@@ -219,7 +219,7 @@ func evaluate(solution map[string]map[string]int) float64 {
 
 	// return 0.0
 
-	var T = fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC)
+	var T = fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC, callCounts)
 	if T < 0 {
 		fmt.Errorf("fitness() should not return negative value")
 	}
@@ -231,6 +231,7 @@ func sigmoid(x float64) float64 {
 }
 
 func RunDPSO() {
+	start := time.Now()
 	Init()
 
 	fmt.Println("enter NewDPSO()")
@@ -243,5 +244,7 @@ func RunDPSO() {
 	dpso.Optimize()
 
 	printJSON(dpso.BestSolution, "dpso_solution.json")
+	elapsed := time.Since(start) // 計算花費時間
+	fmt.Printf("execution time(dpso): %s\n\n", elapsed)
 	// UpDateDeploymentsByJSON("dpso_solution.json")
 }
