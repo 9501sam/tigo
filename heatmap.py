@@ -14,6 +14,7 @@ sns.heatmap(pivot, annot=True, fmt=".0f", cmap="Reds")
 plt.title("Service-to-Service Call Heatmap")
 plt.ylabel("Caller (From)")
 plt.xlabel("Callee (To)")
+plt.yticks(rotation=0)  # Set x-axis labels to horizontal
 plt.tight_layout()
 
 plt.savefig("heatmap.png", dpi=300)  # Change filename and dpi as needed
