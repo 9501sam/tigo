@@ -11,5 +11,5 @@ recommendationservice,productcatalogservice,62
 frontend,productcatalogservice,402
 frontend,recommendationservice,62
 frontend,cartservice,77
-none,frontend,100
+user,frontend,100
 checkoutservice,cartservice,6
