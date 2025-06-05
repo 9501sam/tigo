@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 type Solution map[string]map[string]int // Solution[node][service] = <replica>
@@ -197,11 +198,14 @@ func tigo(BS int) Solution {
 }
 
 func RunTIGO() {
+	start := time.Now()
 	InitTIGO()
 	BS := 5 // Branch Search Size
 	bestSolution := tigo(BS)
 	fmt.Println("Best Solution:")
 	printJSON(bestSolution, "")
-	printJSON(bestSolution, "tigo_solution2.json")
-	UpDateDeploymentsByJSON("tigo_solution2.json")
+	elapsed := time.Since(start) // 計算花費時間
+	fmt.Printf("execution time(tigo): %s\n\n", elapsed)
+	// printJSON(bestSolution, "tigo_solution2.json")
+	// UpDateDeploymentsByJSON("tigo_solution2.json")
 }
