@@ -70,6 +70,17 @@ func printJSON(data interface{}, fileName string) {
 	}
 }
 
+var services = []string{
+	"cartservice", "checkoutservice", "currencyservice", "emailservice",
+	"frontend", "paymentservice", "productcatalogservice", "recommendationservice",
+	"redis-cart", "shippingservice",
+}
+
+var traceData TraceData
+var processTimeMap map[string]map[string]int64
+var processTimeCloudMap map[string]map[string]int64
+var callCounts map[CallKey]int
+
 type Constraints struct {
 	CPU    int `json:"cpu"`
 	Memory int `json:"memory"`
@@ -80,3 +91,11 @@ type NodeConstraints map[string]Constraints
 
 var serviceConstraints ResourceConstraints
 var nodeConstraints NodeConstraints
+
+func copySolution(dst, src map[string]map[string]int) {
+	for node := range src {
+		for service, value := range src[node] {
+			dst[node][service] = value
+		}
+	}
+}
