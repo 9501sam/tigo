@@ -13,9 +13,10 @@ const (
 )
 
 type PSOParticle struct {
-	Solution     map[string]map[string]int // [pm_i][ms_j] = number of containers of microservice i on node j
-	BestSolution map[string]map[string]int // pbest
-	BestScore    float64
+	Particle
+	// Solution     map[string]map[string]int // [pm_i][ms_j] = number of containers of microservice i on node j
+	// BestSolution map[string]map[string]int // pbest
+	// BestScore    float64
 }
 
 type PSO struct {
@@ -80,7 +81,7 @@ func InitPSO() {
 // }
 
 // transferOperation moves containers randomly
-func transferOperation(p *PSOParticle) {
+func transferOperation(p *Particle) {
 	rowsToTransfer := selectRandomRows(int(Omega * float64(len(services))))
 
 	for _, msIdx := range rowsToTransfer {
@@ -109,7 +110,7 @@ func transferOperation(p *PSOParticle) {
 }
 
 // copyOperation copies rows from a reference solution
-func copyOperation(p *PSOParticle, ref map[string]map[string]int, rows []int) {
+func copyOperation(p *Particle, ref map[string]map[string]int, rows []int) {
 	for _, msIdx := range rows {
 		ms := services[msIdx]
 		for pm := range p.Solution {

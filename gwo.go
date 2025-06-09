@@ -19,9 +19,10 @@ const (
 
 // GWOParticle represents a GWO solution
 type GWOParticle struct {
-	Solution     map[string]map[string]int // [pm_i][ms_j] = number of containers
-	BestSolution map[string]map[string]int // Personal best
-	BestScore    float64
+	Particle
+	// Solution     map[string]map[string]int // [pm_i][ms_j] = number of containers
+	// BestSolution map[string]map[string]int // Personal best
+	// BestScore    float64
 }
 
 func InitGWO() {
@@ -68,9 +69,11 @@ func NewGWO(numParticles, maxIter int) *GWO {
 		}
 		score := evaluate(solution)
 		particles[i] = GWOParticle{
-			Solution:     solution,
-			BestSolution: bestSolution,
-			BestScore:    score,
+			Particle: Particle{
+				Solution:     solution,
+				BestSolution: bestSolution,
+				BestScore:    score,
+			},
 		}
 	}
 
@@ -107,45 +110,6 @@ func (gwo *GWO) Optimize() {
 	for i := 0; i < gwo.MaxIter; i++ {
 		// Update a (linearly decreases from 0.8 to 0.2)
 		a := 0.8 - float64(i)/float64(gwo.MaxIter)*(0.8-0.2)
-
-		// Update Pareto front
-		gwo.updateParetoFront()
-		select {
-		case sharedMem <- gwo.ParetoFront:
-		default:
-		}
-
-		// Check for new Pareto front or transformation
-		flag := true
-		for flag {
-			select {
-			case newFront := <-sharedMem:
-				gwo.ParetoFront = newFront
-				select {
-				case sharedMem <- newFront:
-				default:
-				}
-				flag = false
-			case t := <-transform:
-				if t == 2 {
-					fmt.Println("GWO transforming to PSO")
-					return
-				}
-			default:
-				flag = false
-			}
-		}
-
-		// Replace worst particle
-		if len(gwo.ParetoFront) > 0 {
-			worstIdx := 0
-			for j := 1; j < len(gwo.Particles); j++ {
-				if gwo.Particles[j].BestScore > gwo.Particles[worstIdx].BestScore {
-					worstIdx = j
-				}
-			}
-			gwo.Particles[worstIdx] = gwo.ParetoFront[rand.Intn(len(gwo.ParetoFront))]
-		}
 
 		// Update particles
 		for j := range gwo.Particles {
