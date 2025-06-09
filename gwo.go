@@ -115,7 +115,7 @@ func (gwo *GWO) Optimize() {
 		for j := range gwo.Particles {
 			if rand.Float64() < a {
 				// Transfer operation for exploration
-				transferOperation(&gwo.Particles[j])
+				transferOperation(&gwo.Particles[j].Particle)
 			} else if len(gwo.ParetoFront) > 0 {
 				// Copy operation from alpha, beta, or delta
 				leader := gwo.Alpha
@@ -126,7 +126,7 @@ func (gwo *GWO) Optimize() {
 					leader = gwo.Delta
 				}
 				rows := selectRandomRows(1) // Single row as per paper
-				copyOperation(&gwo.Particles[j], leader.Solution, rows)
+				copyOperation(&gwo.Particles[j].Particle, leader.Solution, rows)
 			}
 
 			// Update personal best

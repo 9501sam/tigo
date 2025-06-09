@@ -42,9 +42,11 @@ func NewPSO(numParticles, maxIter int) *PSO {
 	bestScore := -1.0
 	for i := range particles {
 		particles[i] = PSOParticle{
-			Solution:     randomSolution(),
-			BestSolution: make(map[string]map[string]int),
-			BestScore:    -1.0,
+			Particle: Particle{
+				Solution:     randomSolution(),
+				BestSolution: make(map[string]map[string]int),
+				BestScore:    -1.0,
+			},
 		}
 		// Initialize BestSolution maps
 		for _, node := range nodes {
@@ -133,9 +135,9 @@ func (pso *PSO) Optimize() {
 	for i := 0; i < pso.MaxIter; i++ {
 		// Update particles
 		for j := range pso.Particles {
-			transferOperation(&pso.Particles[j])
+			transferOperation(&pso.Particles[j].Particle)
 			pbestRows := selectRandomRows(int(C1 * float64(len(services))))
-			copyOperation(&pso.Particles[j], pso.Particles[j].BestSolution, pbestRows)
+			copyOperation(&pso.Particles[j].Particle, pso.Particles[j].BestSolution, pbestRows)
 			// Update pbest
 			if score := evaluate(pso.Particles[j].Solution); score < pso.Particles[j].BestScore {
 				pso.Particles[j].BestScore = score
