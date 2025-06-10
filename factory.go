@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"sync"
@@ -48,6 +49,7 @@ func (f *Factory) Run(wg *sync.WaitGroup) {
 						worstIdx = j
 					}
 				}
+				fmt.Printf("worseIdx = %d\n", worstIdx)
 				// Simplified: Assume worst particle indicates source algorithm
 				// In practice, track source (PSO/GWO) during merge
 				if rand.Float64() < 0.5 { // Placeholder for PSO/GWO identification

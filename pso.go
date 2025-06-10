@@ -2,7 +2,9 @@ package main
 
 import (
 	// "fmt"
+	"math"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -12,24 +14,18 @@ const (
 	C1         = 0.1
 )
 
-type PSOParticle struct {
-	Particle
-	// Solution     map[string]map[string]int // [pm_i][ms_j] = number of containers of microservice i on node j
-	// BestSolution map[string]map[string]int // pbest
-	// BestScore    float64
-}
-
 type PSO struct {
-	Particles    []PSOParticle
+	Particles    []Particle
 	BestSolution map[string]map[string]int // gbest
 	BestScore    float64
+	ParetoFront  []Particle
 	NumParticles int
 	MaxIter      int
 }
 
 func NewPSO(numParticles, maxIter int) *PSO {
 	rand.Seed(time.Now().UnixNano())
-	particles := make([]PSOParticle, numParticles)
+	particles := make([]Particle, numParticles)
 	bestSolution := make(map[string]map[string]int)
 	for _, node := range nodes {
 		bestSolution[node] = make(map[string]int)
@@ -41,12 +37,10 @@ func NewPSO(numParticles, maxIter int) *PSO {
 	}
 	bestScore := -1.0
 	for i := range particles {
-		particles[i] = PSOParticle{
-			Particle: Particle{
-				Solution:     randomSolution(),
-				BestSolution: make(map[string]map[string]int),
-				BestScore:    -1.0,
-			},
+		particles[i] = Particle{
+			Solution:     randomSolution(),
+			BestSolution: make(map[string]map[string]int),
+			BestScore:    -1.0,
 		}
 		// Initialize BestSolution maps
 		for _, node := range nodes {
@@ -127,13 +121,69 @@ func selectRandomRows(n int) []int {
 	return rows[:n]
 }
 
-func (pso *PSO) Optimize() {
+func (pso *PSO) Optimize(wg *sync.WaitGroup) {
 	for i := 0; i < pso.MaxIter; i++ {
-		// Update particles
+		//*** Communicate with Shared Memory ***///
+		pso.ParetoFront = []Particle{}
+		for _, p := range pso.Particles {
+			pso.ParetoFront = updateParetoFront(pso.ParetoFront, p)
+		}
+
+		sharedMem.Lock()
+		sharedMem.PSOFront = pso.ParetoFront
+		sharedMem.Unlock()
+
+		for {
+			sharedMem.RLock()
+			if sharedMem.Used {
+				sharedMem.RUnlock()
+				break
+			}
+			sharedMem.RUnlock()
+			time.Sleep(time.Millisecond * 10)
+		}
+
+		sharedMem.Lock()
+		if sharedMem.Transform == 1 {
+			gwo := NewGWO(pso.NumParticles, pso.MaxIter)
+			for j := 0; j < pso.NumParticles/2; j++ {
+				// gwo.Particles[j] = GWOParticle{Particle: pso.Particles[j].Particle}
+				gwo.Particles[j] = pso.Particles[j]
+			}
+			sharedMem.Transform = 0
+			sharedMem.Unlock()
+			gwo.Optimize(wg)
+			return
+		}
+		sharedMem.Unlock()
+
+		sharedMem.RLock()
+		newFront := sharedMem.MergedFront
+		sharedMem.RUnlock()
+
+		if len(newFront) > 0 {
+			worstIdx := 0
+			worstScore := -math.Inf(1)
+			for j, p := range pso.Particles {
+				if p.BestScore > worstScore {
+					worstScore = p.BestScore
+					worstIdx = j
+				}
+			}
+			randIdx := rand.Intn(len(newFront))
+			pso.Particles[worstIdx].Solution = make(map[string]map[string]int)
+			for _, pm := range nodes {
+				pso.Particles[worstIdx].Solution[pm] = make(map[string]int)
+			}
+			copySolution(pso.Particles[worstIdx].Solution, newFront[randIdx].Solution)
+			pso.Particles[worstIdx].BestScore = evaluate(pso.Particles[worstIdx].Solution)
+		}
+
+		//*** Original PSO Part ***///
 		for j := range pso.Particles {
-			transferOperation(&pso.Particles[j].Particle)
+			transferOperation(&pso.Particles[j])
 			pbestRows := selectRandomRows(int(C1 * float64(len(services))))
-			copyOperation(&pso.Particles[j].Particle, pso.Particles[j].BestSolution, pbestRows)
+			copyOperation(&pso.Particles[j], pso.Particles[j].BestSolution, pbestRows)
 			// Update pbest
 			if score := evaluate(pso.Particles[j].Solution); score < pso.Particles[j].BestScore {
 				pso.Particles[j].BestScore = score
@@ -161,12 +211,4 @@ func (pso *PSO) Optimize() {
 			}
 		}
 	}
-	// Optimize finish
-}
-
-func RunPSO() {
-	InitPSO()
-	pso := NewPSO(30, 100)
-	// go pso.Optimize()
-	pso.Optimize()
 }

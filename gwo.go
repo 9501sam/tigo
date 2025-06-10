@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 	// "os"
 	"time"
 )
@@ -17,14 +18,6 @@ const (
 	// C1 = 0.1
 )
 
-// GWOParticle represents a GWO solution
-type GWOParticle struct {
-	Particle
-	// Solution     map[string]map[string]int // [pm_i][ms_j] = number of containers
-	// BestSolution map[string]map[string]int // Personal best
-	// BestScore    float64
-}
-
 func InitGWO() {
 	loadJSONFile("app.json", &traceData)
 	loadJSONFile("resources_services.json", &serviceConstraints)
@@ -36,18 +29,18 @@ func InitGWO() {
 
 // GWO represents the GWO algorithm state
 type GWO struct {
-	Particles    []GWOParticle
-	Alpha        GWOParticle // Best solution
-	Beta         GWOParticle // Second best
-	Delta        GWOParticle // Third best
-	ParetoFront  []GWOParticle
+	Particles    []Particle
+	Alpha        Particle // Best solution
+	Beta         Particle // Second best
+	Delta        Particle // Third best
+	ParetoFront  []Particle
 	NumParticles int
 	MaxIter      int
 }
 
 func NewGWO(numParticles, maxIter int) *GWO {
 	rand.Seed(time.Now().UnixNano())
-	particles := make([]GWOParticle, numParticles)
+	particles := make([]Particle, numParticles)
 
 	// Initialize nodes if not already set
 	if len(nodes) == 0 {
@@ -68,17 +61,15 @@ func NewGWO(numParticles, maxIter int) *GWO {
 			}
 		}
 		score := evaluate(solution)
-		particles[i] = GWOParticle{
-			Particle: Particle{
-				Solution:     solution,
-				BestSolution: bestSolution,
-				BestScore:    score,
-			},
+		particles[i] = Particle{
+			Solution:     solution,
+			BestSolution: bestSolution,
+			BestScore:    score,
 		}
 	}
 
 	// Initialize alpha, beta, delta
-	var alpha, beta, delta GWOParticle
+	var alpha, beta, delta Particle
 	alpha.BestScore = math.Inf(1)
 	beta.BestScore = math.Inf(1)
 	delta.BestScore = math.Inf(1)
@@ -100,22 +91,79 @@ func NewGWO(numParticles, maxIter int) *GWO {
 		Alpha:        alpha,
 		Beta:         beta,
 		Delta:        delta,
-		ParetoFront:  []GWOParticle{alpha}, // Initial Pareto front
+		ParetoFront:  []Particle{alpha}, // Initial Pareto front
 		NumParticles: numParticles,
 		MaxIter:      maxIter,
 	}
 }
-func (gwo *GWO) Optimize() {
+func (gwo *GWO) Optimize(wg *sync.WaitGroup) {
+	defer wg.Done()
 	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < gwo.MaxIter; i++ {
 		// Update a (linearly decreases from 0.8 to 0.2)
 		a := 0.8 - float64(i)/float64(gwo.MaxIter)*(0.8-0.2)
 
-		// Update particles
+		//*** Communicate with Shared Memory ***///
+		gwo.ParetoFront = []Particle{}
+		for _, p := range gwo.Particles {
+			gwo.ParetoFront = updateParetoFront(gwo.ParetoFront, p)
+		}
+
+		sharedMem.Lock()
+		sharedMem.GWOFront = gwo.ParetoFront
+		sharedMem.Unlock()
+
+		for {
+			sharedMem.RLock()
+			if sharedMem.Used {
+				sharedMem.RUnlock()
+				break
+			}
+			sharedMem.RUnlock()
+			time.Sleep(time.Millisecond * 10)
+		}
+
+		sharedMem.Lock()
+		if sharedMem.Transform == 2 {
+			pso := NewPSO(gwo.NumParticles, gwo.MaxIter)
+			for j := 0; j < gwo.NumParticles/2; j++ {
+				// pso.Particles[j] = PSOParticle{Particle: gwo.Particles[j].Particle} // TODO
+				pso.Particles[j] = gwo.Particles[j]
+			}
+			sharedMem.Transform = 0
+			sharedMem.Unlock()
+			pso.Optimize(wg)
+			return
+		}
+		sharedMem.Unlock()
+
+		sharedMem.RLock()
+		newFront := sharedMem.MergedFront
+		sharedMem.RUnlock()
+
+		if len(newFront) > 0 {
+			worstIdx := 0
+			worstScore := -math.Inf(1)
+			for j, p := range gwo.Particles {
+				if p.BestScore > worstScore {
+					worstScore = p.BestScore
+					worstIdx = j
+				}
+			}
+			randIdx := rand.Intn(len(newFront))
+			gwo.Particles[worstIdx].Solution = make(map[string]map[string]int)
+			for _, pm := range nodes {
+				gwo.Particles[worstIdx].Solution[pm] = make(map[string]int)
+			}
+			copySolution(gwo.Particles[worstIdx].Solution, newFront[randIdx].Solution)
+			gwo.Particles[worstIdx].BestScore = evaluate(gwo.Particles[worstIdx].Solution)
+		}
+
+		//*** Original GWO Part ***///
 		for j := range gwo.Particles {
 			if rand.Float64() < a {
 				// Transfer operation for exploration
-				transferOperation(&gwo.Particles[j].Particle)
+				transferOperation(&gwo.Particles[j])
 			} else if len(gwo.ParetoFront) > 0 {
 				// Copy operation from alpha, beta, or delta
 				leader := gwo.Alpha
@@ -126,7 +174,7 @@ func (gwo *GWO) Optimize() {
 					leader = gwo.Delta
 				}
 				rows := selectRandomRows(1) // Single row as per paper
-				copyOperation(&gwo.Particles[j].Particle, leader.Solution, rows)
+				copyOperation(&gwo.Particles[j], leader.Solution, rows)
 			}
 
 			// Update personal best
@@ -153,10 +201,4 @@ func (gwo *GWO) Optimize() {
 		}
 	}
 	fmt.Printf("Final GWO Pareto front size: %d, Alpha Score: %.2f\n", len(gwo.ParetoFront), gwo.Alpha.BestScore)
-}
-
-func RunGWO() {
-	InitGWO()
-	gwo := NewGWO(30, 100)
-	gwo.Optimize()
 }
