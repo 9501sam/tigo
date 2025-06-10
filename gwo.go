@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	// Iterations    = 100
 	PhysicalNodes = 100
 	Microservices = 10 // Matches len(services)
 	// Omega         = 0.45

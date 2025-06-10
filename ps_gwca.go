@@ -4,6 +4,10 @@ import (
 	"sync"
 )
 
+const (
+	Iterations = 100
+)
+
 func RunPS_GWCA() {
 	InitPSO()
 	InitGWO()

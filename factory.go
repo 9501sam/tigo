@@ -24,6 +24,7 @@ func (f *Factory) Run(wg *sync.WaitGroup) {
 	rand.Seed(time.Now().UnixNano())
 
 	for i := 0; i < f.MaxIter; i++ {
+		fmt.Printf("i = %d\n", i)
 		sharedMem.Lock()
 		psoFront := sharedMem.PSOFront
 		gwoFront := sharedMem.GWOFront

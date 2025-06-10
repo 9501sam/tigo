@@ -1,7 +1,7 @@
 package main
 
 import (
-	// "fmt"
+	"fmt"
 	"math"
 	"math/rand"
 	"sync"
@@ -9,9 +9,8 @@ import (
 )
 
 const (
-	Iterations = 100
-	Omega      = 0.45
-	C1         = 0.1
+	Omega = 0.45
+	C1    = 0.1
 )
 
 type PSO struct {
@@ -122,6 +121,7 @@ func selectRandomRows(n int) []int {
 }
 
 func (pso *PSO) Optimize(wg *sync.WaitGroup) {
+	defer wg.Done()
 	for i := 0; i < pso.MaxIter; i++ {
 		//*** Communicate with Shared Memory ***///
 		pso.ParetoFront = []Particle{}
@@ -211,4 +211,5 @@ func (pso *PSO) Optimize(wg *sync.WaitGroup) {
 			}
 		}
 	}
+	fmt.Printf("Final PSO Pareto front size: %d, Best Score: %.2f\n", len(pso.ParetoFront), pso.BestScore)
 }
