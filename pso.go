@@ -30,14 +30,12 @@ func NewPSO(numParticles, maxIter int) *PSO {
 		bestSolution[node] = make(map[string]int)
 		for _, service := range services {
 			bestSolution[node][service] = 0
-
 		}
-
 	}
 	bestScore := -1.0
 	for i := range particles {
 		particles[i] = Particle{
-			Solution:     randomSolution(),
+			Solution:     randomSolutionForPS_GWCA(),
 			BestSolution: make(map[string]map[string]int),
 			BestScore:    -1.0,
 		}
@@ -212,4 +210,5 @@ func (pso *PSO) Optimize(wg *sync.WaitGroup) {
 		}
 	}
 	fmt.Printf("Final PSO Pareto front size: %d, Best Score: %.2f\n", len(pso.ParetoFront), pso.BestScore)
+	printJSON(pso.BestSolution, "")
 }

@@ -119,3 +119,32 @@ type SharedMemory struct {
 }
 
 var sharedMem SharedMemory
+
+func sumServiceInstances(filename string) {
+	// // Read the JSON file
+	// data, err := ioutil.ReadFile(filename)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error reading file: %v", err)
+	// }
+
+	// // Parse JSON into a map
+	// var nodeServices map[string]map[string]int
+	// err = json.Unmarshal(data, &nodeServices)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error parsing JSON: %v", err)
+	// }
+	var nodeServices map[string]map[string]int
+	loadJSONFile(filename, &nodeServices)
+
+	// Initialize the result map to store service totals
+	serviceTotals := make(map[string]int)
+
+	// Sum instances for each service across all nodes
+	for nodeName, services := range nodeServices {
+		fmt.Printf("Processing node: %s\n", nodeName)
+		for serviceName, instances := range services {
+			serviceTotals[serviceName] += instances
+		}
+	}
+	printJSON(serviceTotals, "")
+}

@@ -51,7 +51,7 @@ func NewGWO(numParticles, maxIter int) *GWO {
 
 	// Initialize particles
 	for i := range particles {
-		solution := randomSolution()
+		solution := randomSolutionForPS_GWCA()
 		bestSolution := make(map[string]map[string]int)
 		for _, node := range nodes {
 			bestSolution[node] = make(map[string]int)
@@ -200,4 +200,5 @@ func (gwo *GWO) Optimize(wg *sync.WaitGroup) {
 		}
 	}
 	fmt.Printf("Final GWO Pareto front size: %d, Alpha Score: %.2f\n", len(gwo.ParetoFront), gwo.Alpha.BestScore)
+	printJSON(gwo.Alpha.BestSolution, "")
 }
