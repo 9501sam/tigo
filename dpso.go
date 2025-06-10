@@ -6,13 +6,6 @@ import (
 	"time"
 )
 
-type Particle struct {
-	Solution     map[string]map[string]int
-	Velocity     map[string]map[string]float64
-	BestSolution map[string]map[string]int
-	BestScore    float64
-}
-
 type DPSO struct {
 	Particles    []Particle
 	BestSolution map[string]map[string]int

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 )
 
 var nodes = []string{"vm1", "vm2", "vm3", "asus"}
@@ -99,3 +100,22 @@ func copySolution(dst, src map[string]map[string]int) {
 		}
 	}
 }
+
+type Particle struct {
+	Solution     map[string]map[string]int
+	Velocity     map[string]map[string]float64
+	BestSolution map[string]map[string]int
+	BestScore    float64
+}
+
+// SharedMemory holds Pareto fronts and synchronization data
+type SharedMemory struct {
+	sync.RWMutex
+	PSOFront    []Particle
+	GWOFront    []Particle
+	MergedFront []Particle
+	Used        bool
+	Transform   int // 0: no transform, 1: PSO to GWO, 2: GWO to PSO
+}
+
+var sharedMem SharedMemory
