@@ -59,4 +59,5 @@ func RunPS_GWCA() {
 	close(nextIter)
 
 	wg.Wait()
+	printJSON(sharedMem.MergedFront[len(sharedMem.MergedFront)-1].BestSolution, "")
 }
