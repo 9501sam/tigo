@@ -101,61 +101,51 @@ func (gwo *GWO) Optimize(abDone *sync.WaitGroup, bDone chan<- struct{}, done cha
 		// // Update a (linearly decreases from 0.8 to 0.2)
 		a := 0.8 - float64(i)/float64(gwo.MaxIter)*(0.8-0.2)
 
-		// //*** Communicate with Shared Memory ***///
-		// gwo.ParetoFront = []Particle{}
-		// for _, p := range gwo.Particles {
-		// 	gwo.ParetoFront = updateParetoFront(gwo.ParetoFront, p)
-		// }
+		//*** Communicate with Shared Memory ***///
+		gwo.ParetoFront = []Particle{}
+		for _, p := range gwo.Particles {
+			gwo.ParetoFront = updateParetoFront(gwo.ParetoFront, p)
+		}
 
-		// sharedMem.Lock()
-		// sharedMem.GWOFront = gwo.ParetoFront
-		// sharedMem.Unlock()
+		sharedMem.Lock()
+		sharedMem.GWOFront = gwo.ParetoFront
+		sharedMem.Unlock()
 
-		// for {
-		// 	sharedMem.RLock()
-		// 	if sharedMem.Used {
-		// 		sharedMem.RUnlock()
-		// 		break
-		// 	}
-		// 	sharedMem.RUnlock()
-		// 	time.Sleep(time.Millisecond * 10)
-		// }
+		sharedMem.Lock()
+		if sharedMem.Transform == 2 {
+			pso := NewPSO(gwo.NumParticles, gwo.MaxIter-i)
+			for j := 0; j < gwo.NumParticles/2; j++ {
+				// pso.Particles[j] = PSOParticle{Particle: gwo.Particles[j].Particle} // TODO
+				pso.Particles[j] = gwo.Particles[j]
+			}
+			sharedMem.Transform = 0
+			sharedMem.Unlock()
+			pso.Optimize(abDone, bDone, done, nextIter)
+			return
+		}
+		sharedMem.Unlock()
 
-		// // sharedMem.Lock()
-		// // if sharedMem.Transform == 2 {
-		// // 	pso := NewPSO(gwo.NumParticles, gwo.MaxIter)
-		// // 	for j := 0; j < gwo.NumParticles/2; j++ {
-		// // 		// pso.Particles[j] = PSOParticle{Particle: gwo.Particles[j].Particle} // TODO
-		// // 		pso.Particles[j] = gwo.Particles[j]
-		// // 	}
-		// // 	sharedMem.Transform = 0
-		// // 	sharedMem.Unlock()
-		// // 	pso.Optimize(wg)
-		// // 	return
-		// // }
-		// // sharedMem.Unlock()
+		sharedMem.RLock()
+		newFront := sharedMem.MergedFront
+		sharedMem.RUnlock()
 
-		// sharedMem.RLock()
-		// newFront := sharedMem.MergedFront
-		// sharedMem.RUnlock()
-
-		// if len(newFront) > 0 {
-		// 	worstIdx := 0
-		// 	worstScore := -math.Inf(1)
-		// 	for j, p := range gwo.Particles {
-		// 		if p.BestScore > worstScore {
-		// 			worstScore = p.BestScore
-		// 			worstIdx = j
-		// 		}
-		// 	}
-		// 	randIdx := rand.Intn(len(newFront))
-		// 	gwo.Particles[worstIdx].Solution = make(map[string]map[string]int)
-		// 	for _, pm := range nodes {
-		// 		gwo.Particles[worstIdx].Solution[pm] = make(map[string]int)
-		// 	}
-		// 	copySolution(gwo.Particles[worstIdx].Solution, newFront[randIdx].Solution)
-		// 	gwo.Particles[worstIdx].BestScore = evaluate(gwo.Particles[worstIdx].Solution)
-		// }
+		if len(newFront) > 0 {
+			worstIdx := 0
+			worstScore := -math.Inf(1)
+			for j, p := range gwo.Particles {
+				if p.BestScore > worstScore {
+					worstScore = p.BestScore
+					worstIdx = j
+				}
+			}
+			randIdx := rand.Intn(len(newFront))
+			gwo.Particles[worstIdx].Solution = make(map[string]map[string]int)
+			for _, pm := range nodes {
+				gwo.Particles[worstIdx].Solution[pm] = make(map[string]int)
+			}
+			copySolution(gwo.Particles[worstIdx].Solution, newFront[randIdx].Solution)
+			gwo.Particles[worstIdx].BestScore = evaluate(gwo.Particles[worstIdx].Solution)
+		}
 		bDone <- struct{}{} // Signal that critical section B is done
 		abDone.Done()       // Signal that B is done for C to proceed
 

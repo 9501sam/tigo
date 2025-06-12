@@ -81,7 +81,6 @@ func (f *Factory) Run(abDone *sync.WaitGroup, aDone, bDone <-chan struct{}, done
 		// Update shared memory with merged Pareto front
 		sharedMem.Lock()
 		sharedMem.MergedFront = mergedFront
-		sharedMem.Used = true
 		sharedMem.Unlock()
 
 		time.Sleep(time.Millisecond * 10)
