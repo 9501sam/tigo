@@ -1,7 +1,7 @@
 package main
 
 import (
-	"math/rand"
+	// "fmt"
 	"sync"
 )
 
@@ -9,53 +9,54 @@ const (
 	Iterations = 100
 )
 
-func randomSolutionForPS_GWCA() map[string]map[string]int {
-	solution := make(map[string]map[string]int)
-	for _, node := range nodes {
-		solution[node] = make(map[string]int)
-		for _, service := range services {
-			solution[node][service] = 0
-		}
-	}
-
-	instances := make(map[string]int)
-	instances["cartservice"] = 6
-	instances["checkoutservice"] = 8
-	instances["currencyservice"] = 8
-	instances["emailservice"] = 4
-	instances["frontend"] = 7
-	instances["paymentservice"] = 5
-	instances["productcatalogservice"] = 6
-	instances["recommendationservice"] = 9
-	instances["redis-cart"] = 5
-	instances["shippingservice"] = 7
-
-	for _, service := range services {
-		// Generate random total instances for this service (1 to 10, adjust range as needed)
-		totalInstances := rand.Intn(10) + 1
-
-		// Randomly distribute the instances across nodes
-		for i := 0; i < totalInstances; i++ {
-			selectedNode := nodes[rand.Intn(len(nodes))]
-			solution[selectedNode][service]++
-		}
-	}
-
-	return solution
-}
-
 func RunPS_GWCA() {
 	InitPSO()
 	InitGWO()
+
+	var abDone sync.WaitGroup
+
+	// Channels for signaling
+	aDone := make(chan struct{}, 1)
+	bDone := make(chan struct{}, 1)
+	done := make(chan struct{}, 3)  // Buffered to avoid blocking
+	nextIter := make(chan struct{}) // Signal to start next iteration
+
 	var wg sync.WaitGroup
 	wg.Add(3)
-
 	pso := NewPSO(300, Iterations)
 	gwo := NewGWO(300, Iterations)
 	factory := NewFactory(Iterations)
-	go factory.Run(&wg)
-	go pso.Optimize(&wg)
-	go gwo.Optimize(&wg)
+	go func() {
+		defer wg.Done()
+		pso.Optimize(&abDone, aDone, done, nextIter)
+	}()
+	go func() {
+		defer wg.Done()
+		gwo.Optimize(&abDone, bDone, done, nextIter)
+	}()
+	go func() {
+		defer wg.Done()
+		factory.Run(&abDone, aDone, bDone, done, nextIter)
+	}()
+
+	// Control iterations
+	for i := 0; i < iternum; i++ {
+		abDone.Add(2) // Add 2 at the beginning of each iteration for PSO and GWO
+		// Wait for all three goroutines to signal completion of this iteration
+		for j := 0; j < 3; j++ {
+			<-done
+		}
+		// Signal all goroutines to start the next iteration
+		for j := 0; j < 3; j++ {
+			nextIter <- struct{}{}
+		}
+	}
+
+	// Close channels to clean up
+	close(aDone)
+	close(bDone)
+	close(done)
+	close(nextIter)
 
 	wg.Wait()
 }

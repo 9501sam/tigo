@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"math"
+	// "math"
 	"math/rand"
 	"sync"
 	"time"
@@ -118,64 +118,65 @@ func selectRandomRows(n int) []int {
 	return rows[:n]
 }
 
-func (pso *PSO) Optimize(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (pso *PSO) Optimize(abDone *sync.WaitGroup, aDone chan<- struct{}, done chan<- struct{}, nextIter chan struct{}) {
 	for i := 0; i < pso.MaxIter; i++ {
 		//*** Communicate with Shared Memory ***///
-		pso.ParetoFront = []Particle{}
-		for _, p := range pso.Particles {
-			pso.ParetoFront = updateParetoFront(pso.ParetoFront, p)
-		}
+		// pso.ParetoFront = []Particle{}
+		// for _, p := range pso.Particles {
+		// 	pso.ParetoFront = updateParetoFront(pso.ParetoFront, p)
+		// }
 
-		sharedMem.Lock()
-		sharedMem.PSOFront = pso.ParetoFront
-		sharedMem.Unlock()
+		// sharedMem.Lock()
+		// sharedMem.PSOFront = pso.ParetoFront
+		// sharedMem.Unlock()
 
-		for {
-			sharedMem.RLock()
-			if sharedMem.Used {
-				sharedMem.RUnlock()
-				break
-			}
-			sharedMem.RUnlock()
-			time.Sleep(time.Millisecond * 10)
-		}
+		// for {
+		// 	sharedMem.RLock()
+		// 	if sharedMem.Used {
+		// 		sharedMem.RUnlock()
+		// 		break
+		// 	}
+		// 	sharedMem.RUnlock()
+		// 	time.Sleep(time.Millisecond * 10)
+		// }
 
-		sharedMem.Lock()
-		if sharedMem.Transform == 1 {
-			gwo := NewGWO(pso.NumParticles, pso.MaxIter)
-			for j := 0; j < pso.NumParticles/2; j++ {
-				// gwo.Particles[j] = GWOParticle{Particle: pso.Particles[j].Particle}
-				gwo.Particles[j] = pso.Particles[j]
-			}
-			sharedMem.Transform = 0
-			sharedMem.Unlock()
-			gwo.Optimize(wg)
-			return
-		}
-		sharedMem.Unlock()
+		// // sharedMem.Lock()
+		// // if sharedMem.Transform == 1 {
+		// // 	gwo := NewGWO(pso.NumParticles, pso.MaxIter)
+		// // 	for j := 0; j < pso.NumParticles/2; j++ {
+		// // 		// gwo.Particles[j] = GWOParticle{Particle: pso.Particles[j].Particle}
+		// // 		gwo.Particles[j] = pso.Particles[j]
+		// // 	}
+		// // 	sharedMem.Transform = 0
+		// // 	sharedMem.Unlock()
+		// // 	gwo.Optimize(wg)
+		// // 	return
+		// // }
+		// // sharedMem.Unlock()
 
-		sharedMem.RLock()
-		newFront := sharedMem.MergedFront
-		sharedMem.RUnlock()
+		// sharedMem.RLock()
+		// newFront := sharedMem.MergedFront
+		// sharedMem.RUnlock()
 
-		if len(newFront) > 0 {
-			worstIdx := 0
-			worstScore := -math.Inf(1)
-			for j, p := range pso.Particles {
-				if p.BestScore > worstScore {
-					worstScore = p.BestScore
-					worstIdx = j
-				}
-			}
-			randIdx := rand.Intn(len(newFront))
-			pso.Particles[worstIdx].Solution = make(map[string]map[string]int)
-			for _, pm := range nodes {
-				pso.Particles[worstIdx].Solution[pm] = make(map[string]int)
-			}
-			copySolution(pso.Particles[worstIdx].Solution, newFront[randIdx].Solution)
-			pso.Particles[worstIdx].BestScore = evaluate(pso.Particles[worstIdx].Solution)
-		}
+		// if len(newFront) > 0 {
+		// 	worstIdx := 0
+		// 	worstScore := -math.Inf(1)
+		// 	for j, p := range pso.Particles {
+		// 		if p.BestScore > worstScore {
+		// 			worstScore = p.BestScore
+		// 			worstIdx = j
+		// 		}
+		// 	}
+		// 	randIdx := rand.Intn(len(newFront))
+		// 	pso.Particles[worstIdx].Solution = make(map[string]map[string]int)
+		// 	for _, pm := range nodes {
+		// 		pso.Particles[worstIdx].Solution[pm] = make(map[string]int)
+		// 	}
+		// 	copySolution(pso.Particles[worstIdx].Solution, newFront[randIdx].Solution)
+		// 	pso.Particles[worstIdx].BestScore = evaluate(pso.Particles[worstIdx].Solution)
+		// }
+		aDone <- struct{}{} // Signal that critical section A is done
+		abDone.Done()       // Signal that A is done for C to proceed
 
 		//*** Original PSO Part ***///
 		for j := range pso.Particles {
@@ -208,6 +209,11 @@ func (pso *PSO) Optimize(wg *sync.WaitGroup) {
 				copySolution(pso.BestSolution, pso.Particles[j].BestSolution)
 			}
 		}
+		fmt.Println("pso")
+		// Signal completion of this iteration
+		done <- struct{}{}
+		// Wait for the next iteration signal
+		<-nextIter
 	}
 	fmt.Printf("Final PSO Pareto front size: %d, Best Score: %.2f\n", len(pso.ParetoFront), pso.BestScore)
 	printJSON(pso.BestSolution, "")

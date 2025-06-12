@@ -161,11 +161,11 @@ func checkConstraints(solution map[string]map[string]int) bool {
 			// 取得該 VM 的資源限制
 			if nodeConstraint, exists := nodeConstraints[node]; exists {
 				if totalCPU > nodeConstraint.CPU {
-					fmt.Printf("Node %s exceeds CPU limit: %d/%d\n", node, totalCPU, nodeConstraint.CPU)
+					// fmt.Printf("Node %s exceeds CPU limit: %d/%d\n", node, totalCPU, nodeConstraint.CPU)
 					return false
 				}
 				if totalMemory > nodeConstraint.Memory {
-					fmt.Printf("Node %s exceeds Memory limit: %d/%d\n", node, totalMemory, nodeConstraint.Memory)
+					// fmt.Printf("Node %s exceeds Memory limit: %d/%d\n", node, totalMemory, nodeConstraint.Memory)
 					return false
 				}
 			} else {

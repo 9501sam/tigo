@@ -18,12 +18,18 @@ func NewFactory(maxIter int) *Factory {
 	}
 }
 
-func (f *Factory) Run(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (f *Factory) Run(abDone *sync.WaitGroup, aDone, bDone <-chan struct{}, done chan<- struct{}, nextIter chan struct{}) {
 	count := 0
 	rand.Seed(time.Now().UnixNano())
 
 	for i := 0; i < f.MaxIter; i++ {
+		// Wait for both critical sections A and B to complete
+		abDone.Wait()
+		// Consume signals from A and B
+		<-aDone
+		<-bDone
+		fmt.Printf("factory: %d\n", i)
+
 		fmt.Printf("i = %d\n", i)
 		sharedMem.Lock()
 		psoFront := sharedMem.PSOFront
@@ -79,6 +85,11 @@ func (f *Factory) Run(wg *sync.WaitGroup) {
 		sharedMem.Unlock()
 
 		time.Sleep(time.Millisecond * 10)
+		// Signal completion of this iteration
+		done <- struct{}{}
+		// Wait for the next iteration signal
+		<-nextIter
+
 	}
 }
 
