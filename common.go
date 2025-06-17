@@ -81,7 +81,8 @@ var services = []string{
 var traceData TraceData
 var processTimeMap map[string]map[string]int64
 var processTimeCloudMap map[string]map[string]int64
-var callCounts map[CallKey]int
+
+// var callCounts map[CallKey]int
 
 type Constraints struct {
 	CPU    int `json:"cpu"`
