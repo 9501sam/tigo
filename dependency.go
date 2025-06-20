@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	// "encoding/json" // Assuming loadJSONFile and printJSON are in common.go or another accessible file
 	// "os" // Assuming loadJSONFile and printJSON use os
 	// "sync" // Assuming SharedMemory uses sync
@@ -126,6 +127,115 @@ func buildChainDFS(current Span, spanMap map[string]Span, chain *InvocationChain
 	}
 }
 
+// *** for (6) and (7) *** //
+// --- 輔助函式：根據公式 (7) 計算 C_d(ni) ---
+// C_d(mi string) float64
+// 計算服務 mi 的調用深度影響因子 C_d(ni)。
+// 等於：以 mi 為呼叫者的直接呼叫總次數 / 所有直接呼叫的總次數。
+func C_d(mi string) float64 {
+	totalCallsFromMi := 0
+	// 計算分子：以 mi 為呼叫者的直接呼叫總次數
+	for key, count := range icCallCounts {
+		if key.Caller == mi {
+			totalCallsFromMi += count
+		}
+	}
+
+	totalAllCalls := 0
+	// 計算分母：所有直接呼叫的總次數
+	// 我們需要檢查 icCallCounts 是否為空，避免除以零
+	if len(icCallCounts) == 0 {
+		return 0.0 // 如果沒有任何直接呼叫數據，返回 0
+	}
+	for _, count := range icCallCounts {
+		totalAllCalls += count
+	}
+
+	if totalAllCalls == 0 {
+		return 0.0 // 再次檢查，如果總數為零，返回 0
+	}
+
+	return float64(totalCallsFromMi) / float64(totalAllCalls)
+}
+
+// --- 輔助函式：計算 Num_IC(serviceName) ---
+// Num_IC(serviceName string) int
+// 計算在 invocationChainCounts 中包含 serviceName 的調用鏈的總出現次數。
+func Num_IC(serviceName string) int {
+	totalCount := 0
+	for chainStr, count := range invocationChainCounts {
+		// 將 chainStr 從 "[serviceA serviceB serviceC]" 轉換回 "serviceA serviceB serviceC"
+		// 這樣我們可以用 strings.Contains 判斷 serviceName 是否在其中
+		cleanedChainStr := strings.Trim(chainStr, "[]")
+		chainServices := strings.Fields(cleanedChainStr) // 按空格分割以獲取單個服務名稱
+
+		for _, s := range chainServices {
+			if s == serviceName {
+				totalCount += count
+				break // 找到後就跳出內部迴圈，避免重複計數同一條鏈
+			}
+		}
+	}
+	return totalCount
+}
+
+// --- 輔助函式：計算 Num_IC(mj, mk) ---
+// Num_IC_Pair(mj, mk string) int
+// 計算同時包含 mj 和 mk 的調用鏈的總出現次數。
+func Num_IC_Pair(mj, mk string) int {
+	totalCount := 0
+	for chainStr, count := range invocationChainCounts {
+		cleanedChainStr := strings.Trim(chainStr, "[]")
+		chainServices := strings.Fields(cleanedChainStr)
+
+		mjFound := false
+		mkFound := false
+
+		for _, s := range chainServices {
+			if s == mj {
+				mjFound = true
+			}
+			if s == mk {
+				mkFound = true
+			}
+		}
+
+		if mjFound && mkFound {
+			totalCount += count
+		}
+	}
+	return totalCount
+}
+
+// --- 核心函式：根據公式 (6) 計算 DepIC(mj, mk) ---
+// DepIC(mj, mk string) float64
+// 計算服務 mj 和 mk 之間的 DepIC 值。
+func DepIC(mj, mk string) float64 {
+	// 獲取 C_d(mj) 和 C_d(mk)
+	cd_mj := C_d(mj)
+	cd_mk := C_d(mk)
+
+	// 獲取 Num_IC(mj), Num_IC(mk) 和 Num_IC(mj, mk)
+	num_ic_mj := Num_IC(mj)
+	num_ic_mk := Num_IC(mk)
+	num_ic_mj_mk := Num_IC_Pair(mj, mk)
+
+	// 檢查分母是否為零，避免運行時錯誤
+	term1 := 0.0
+	if cd_mj != 0 && num_ic_mj != 0 {
+		term1 = (1 / cd_mj) * (float64(num_ic_mj_mk) / float64(num_ic_mj))
+	}
+
+	term2 := 0.0
+	if cd_mk != 0 && num_ic_mk != 0 {
+		term2 = (1 / cd_mk) * (float64(num_ic_mj_mk) / float64(num_ic_mk))
+	}
+
+	return term1 + term2
+}
+
+// *** for (6) and (7) *** //
+
 // RunDependency is the main entry point for the dependency analysis
 // Assumes loadJSONFile and traceData are accessible (e.g., from common.go/main.go setup)
 func RunDependency() {
@@ -149,4 +259,7 @@ func RunDependency() {
 	for call, count := range icCallCounts { // Use renamed map
 		fmt.Printf("Call: %s -> %s, Count: %d\n", call.Caller, call.Callee, count)
 	}
+
+	depIC_sp := DepIC("frontend", "checkoutservice")
+	fmt.Printf("DepIC(\"frontend\", \"checkoutservice\"): %.4f\n", depIC_sp)
 }
