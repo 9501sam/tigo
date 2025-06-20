@@ -132,7 +132,7 @@ func RunDependency() {
 	// Load your Jaeger trace JSON data
 	// Assuming traceData is a global variable of type TraceData defined elsewhere (e.g., common.go or main.go)
 	// And loadJSONFile is a function defined elsewhere (e.g., common.go)
-	err := loadJSONFile("traceData_dpso.json", &traceData)
+	err := loadJSONFile("app.json", &traceData)
 	if err != nil {
 		log.Fatalf("Error loading trace data: %v", err)
 	}
