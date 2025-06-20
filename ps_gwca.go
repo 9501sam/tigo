@@ -40,7 +40,7 @@ func RunPS_GWCA() {
 	}()
 
 	// Control iterations
-	for i := 0; i < iternum; i++ {
+	for i := 0; i < Iterations; i++ {
 		abDone.Add(2) // Add 2 at the beginning of each iteration for PSO and GWO
 		// Wait for all three goroutines to signal completion of this iteration
 		for j := 0; j < 3; j++ {

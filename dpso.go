@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"math/rand"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -66,8 +69,40 @@ func NewDPSO(numParticles, maxIter int) *DPSO {
 	}
 }
 
+// writeCSVHeader checks if the CSV file exists and writes the header if it doesn't.
+func writeCSVHeader(filePath string) error {
+	_, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to create CSV file: %w", err)
+		}
+		defer f.Close()
+		writer := csv.NewWriter(f)
+		defer writer.Flush()
+		return writer.Write([]string{"Iteration", "BestScore"})
+	}
+	return nil
+}
+
 func (dpso *DPSO) Optimize() {
 	w, c1, c2 := 0.5, 1.5, 1.5
+	csvFileName := "dpso_optimization_results.csv" // Define your CSV file name
+
+	if err := writeCSVHeader(csvFileName); err != nil {
+		fmt.Printf("Error writing CSV header: %v\n", err)
+		return // Or handle error as appropriate
+	}
+	// Open the CSV file in append mode. If it doesn't exist, it will be created.
+	f, err := os.OpenFile(csvFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("Error opening CSV file: %v\n", err)
+		return // Or handle error as appropriate
+	}
+	defer f.Close() // Ensure the file is closed when the function exits
+
+	writer := csv.NewWriter(f)
+	defer writer.Flush() // Ensure all buffered data is written to the file
 
 	for iter := 0; iter < dpso.MaxIter; iter++ {
 		fmt.Printf("\nIteration %d start!!!\n", iter)
@@ -108,6 +143,13 @@ func (dpso *DPSO) Optimize() {
 			}
 		}
 		fmt.Printf("Iteration %d: Best Score = %f, BestSolution till this iteration be like: \n", iter, dpso.BestScore)
+		// TODO: save iter, dpso.BestScore to a csv file
+		record := []string{strconv.Itoa(iter), strconv.FormatFloat(dpso.BestScore, 'f', -1, 64)}
+		if err := writer.Write(record); err != nil {
+			fmt.Printf("Error writing record to CSV: %v\n", err)
+			// Decide how to handle this error: continue, break, return
+		}
+		writer.Flush() // Flush after each write to ensure data is written immediately
 		if iter == dpso.MaxIter-1 {
 			printJSON(dpso.BestSolution, "")
 		}
