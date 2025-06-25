@@ -1,9 +1,6 @@
 package utils
 
-import (
-	"errors"
-	"fmt"
-)
+import ()
 
 // Stack represents a LIFO (Last In, First Out) stack.
 // It uses a slice of interface{} to allow storing elements of any type,
@@ -25,24 +22,28 @@ func (s *Stack) Push(item interface{}) {
 }
 
 // Pop removes and returns the top element from the stack.
-// It returns an error if the stack is empty.
-func (s *Stack) Pop() (interface{}, error) {
+// It returns nil if the stack is empty. Callers should check for nil.
+func (s *Stack) Pop() interface{} {
 	if s.IsEmpty() {
-		return nil, errors.New("stack is empty, cannot pop")
+		// If the stack is empty, return nil.
+		// The caller is responsible for checking if the returned value is nil.
+		return nil
 	}
 	lastIndex := len(s.elements) - 1
 	item := s.elements[lastIndex]
 	s.elements = s.elements[:lastIndex] // Reslice to remove the last element
-	return item, nil
+	return item
 }
 
-// Peek returns the top element of the stack without removing it.
-// It returns an error if the stack is empty.
-func (s *Stack) Peek() (interface{}, error) {
+// Top returns the top element of the stack without removing it.
+// It returns nil if the stack is empty. Callers should check for nil.
+func (s *Stack) Top() interface{} {
 	if s.IsEmpty() {
-		return nil, errors.New("stack is empty, cannot peek")
+		// If the stack is empty, return nil.
+		// The caller is responsible for checking if the returned value is nil.
+		return nil
 	}
-	return s.elements[len(s.elements)-1], nil
+	return s.elements[len(s.elements)-1]
 }
 
 // IsEmpty checks if the stack contains no elements.
@@ -55,44 +56,44 @@ func (s *Stack) Size() int {
 	return len(s.elements)
 }
 
-func StackExample() {
-	myStack := NewStack()
-
-	fmt.Println("Is stack empty?", myStack.IsEmpty()) // true
-	fmt.Println("Stack size:", myStack.Size())        // 0
-
-	myStack.Push("apple")
-	myStack.Push(123)
-	myStack.Push(true)
-
-	fmt.Println("\nAfter pushing elements:")
-	fmt.Println("Is stack empty?", myStack.IsEmpty()) // false
-	fmt.Println("Stack size:", myStack.Size())        // 3
-
-	topElement, err := myStack.Peek()
-	if err == nil {
-		fmt.Println("Top element (peek):", topElement) // true
-	}
-
-	poppedElement, err := myStack.Pop()
-	if err == nil {
-		fmt.Println("Popped element:", poppedElement) // true
-	}
-	fmt.Println("Stack size after pop:", myStack.Size()) // 2
-
-	poppedElement, err = myStack.Pop()
-	if err == nil {
-		fmt.Println("Popped element:", poppedElement) // 123
-	}
-
-	poppedElement, err = myStack.Pop()
-	if err == nil {
-		fmt.Println("Popped element:", poppedElement) // apple
-	}
-
-	fmt.Println("Stack size after all pops:", myStack.Size()) // 0
-	_, err = myStack.Pop()
-	if err != nil {
-		fmt.Println("Error when popping from empty stack:", err) // Error message
-	}
-}
+// func StackExample() {
+// 	myStack := NewStack()
+//
+// 	fmt.Println("Is stack empty?", myStack.IsEmpty()) // true
+// 	fmt.Println("Stack size:", myStack.Size())        // 0
+//
+// 	myStack.Push("apple")
+// 	myStack.Push(123)
+// 	myStack.Push(true)
+//
+// 	fmt.Println("\nAfter pushing elements:")
+// 	fmt.Println("Is stack empty?", myStack.IsEmpty()) // false
+// 	fmt.Println("Stack size:", myStack.Size())        // 3
+//
+// 	topElement, err := myStack.Top()
+// 	if err == nil {
+// 		fmt.Println("Top element (peek):", topElement) // true
+// 	}
+//
+// 	poppedElement, err := myStack.Pop()
+// 	if err == nil {
+// 		fmt.Println("Popped element:", poppedElement) // true
+// 	}
+// 	fmt.Println("Stack size after pop:", myStack.Size()) // 2
+//
+// 	poppedElement, err = myStack.Pop()
+// 	if err == nil {
+// 		fmt.Println("Popped element:", poppedElement) // 123
+// 	}
+//
+// 	poppedElement, err = myStack.Pop()
+// 	if err == nil {
+// 		fmt.Println("Popped element:", poppedElement) // apple
+// 	}
+//
+// 	fmt.Println("Stack size after all pops:", myStack.Size()) // 0
+// 	_, err = myStack.Pop()
+// 	if err != nil {
+// 		fmt.Println("Error when popping from empty stack:", err) // Error message
+// 	}
+// }
