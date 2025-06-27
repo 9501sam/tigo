@@ -46,6 +46,13 @@ func (s *Stack) Top() interface{} {
 	return s.elements[len(s.elements)-1]
 }
 
+func (s *Stack) PeekSecond() interface{} {
+	if s.IsEmpty() || len(s.elements) < 2 {
+		return nil
+	}
+	return s.elements[len(s.elements)-2]
+}
+
 // IsEmpty checks if the stack contains no elements.
 func (s *Stack) IsEmpty() bool {
 	return len(s.elements) == 0
@@ -54,6 +61,10 @@ func (s *Stack) IsEmpty() bool {
 // Size returns the number of elements in the stack.
 func (s *Stack) Size() int {
 	return len(s.elements)
+}
+
+func (s *Stack) GetElements() []interface{} {
+	return s.elements
 }
 
 // func StackExample() {

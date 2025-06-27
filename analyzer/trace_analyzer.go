@@ -50,7 +50,7 @@ func CountInvocationOfTraces(traceData common.TraceData) map[common.CallKey]int 
 	return callCount
 }
 
-func CountInvocationOfOneTrace(trace common.Trace) map[common.CallKey]int {
+func CountInvocationOfOneTrace(trace common.Trace) InvocationCount {
 	callCount := make(map[common.CallKey]int)
 	for _, span := range trace.Spans {
 		if span.ParentService != "" && span.ParentService != span.ServiceName {
@@ -84,6 +84,7 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 		fmt.Printf("n = %s\n", n)
 		fmt.Printf("IC = %s\n", IC.String())
 		fmt.Printf("IC.NumIC_t_IC = %d\n", IC.NumIC_t_IC)
+		fmt.Println("----")
 		iter++
 
 		if IC.IsEmpty() {
@@ -92,23 +93,39 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 			AddNode.Push(n)
 			CurrentNum.Push(0)
 		} else {
-			if _, ok := NumI_t[common.CallKey{From: IC.GetTail(), To: n}]; ok {
+			if NumI_t.Exist(IC.GetTail(), n) {
+				fmt.Printf("Extend n = %s the current IC\n", n)
 				if IC.NumIC_t_IC == 0 {
-					IC.NumIC_t_IC = NumI_t[common.CallKey{From: IC.GetTail(), To: n}]
-					fmt.Printf("IC.NumIC_t_IC = %d\n", IC.NumIC_t_IC)
+					IC.NumIC_t_IC = NumI_t.GetCount(IC.GetTail(), n)
 				} else {
-					IC.NumIC_t_IC = min(IC.NumIC_t_IC, NumI_t[common.CallKey{From: IC.GetTail(), To: n}])
+					IC.NumIC_t_IC = min(IC.NumIC_t_IC, NumI_t.GetCount(IC.GetTail(), n))
 				}
 				IC.Append(n)
 				AddNode.Push(n)
 				CurrentNum.Push(IC.NumIC_t_IC)
+				fmt.Printf("IC = %s\n", IC.String())
+				fmt.Printf("IC.NumIC_t_IC = %d\n", IC.NumIC_t_IC)
+
 			} else {
-				fmt.Printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+				fmt.Printf("The current IC ends, create a new IC\n")
 				InvChains.Append(IC)
-				// *** TODO: 24 ~ 30 *** //
+				fmt.Printf("push IC = %s, IC.NumIC_t_IC = %d to InvChains\n", IC.String(), IC.NumIC_t_IC)
+
+				Junc := AddNode.Top().(string)
+				candNum := CurrentNum.Top().(int)
+				for !NumI_t.Exist(Junc, n) {
+					AddNode.Pop()
+					CurrentNum.Pop()
+					Junc = AddNode.Top().(string)
+					candNum = CurrentNum.Top().(int)
+				}
+
+				// copy eletent in stack `AddNode` to IC
+				// make IC to size AddNode.Size()
+				IC.Microservices = IC.Microservices[:AddNode.Size()]
+				IC.NumIC_t_IC = min(candNum, NumI_t.GetCount(Junc, n))
 
 				IC.Append(n)
-				// IC.NumIC_t_IC = min(candNum, NumI_t[common.CallKey{From: Junc, To: n}])
 				AddNode.Push(n)
 				CurrentNum.Push(IC.NumIC_t_IC)
 			}
@@ -116,7 +133,7 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 
 		// push childs of `n` to the `stack`
 		for _, s := range common.Services {
-			if count, ok := NumI_t[common.CallKey{From: n, To: s}]; ok && (count != 0) {
+			if NumI_t.Exist(n, s) {
 				stack.Push(s)
 			}
 		}
