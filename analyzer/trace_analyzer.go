@@ -61,7 +61,7 @@ func CountInvocationOfOneTrace(trace common.Trace) InvocationCount {
 	return callCount
 }
 
-/// *** ExtICsFromCallGraph *** ///
+// / *** ExtICsFromCallGraph *** ///
 // Input: A trace: t; a call graph: G;
 func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 	stack := utils.NewStack()
@@ -123,7 +123,15 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 				// copy eletent in stack `AddNode` to IC
 				// make IC to size AddNode.Size()
 				IC.Microservices = IC.Microservices[:AddNode.Size()]
-				IC.NumIC_t_IC = min(candNum, NumI_t.GetCount(Junc, n))
+				if candNum == 0 {
+					IC.NumIC_t_IC = NumI_t.GetCount(Junc, n)
+				} else {
+					IC.NumIC_t_IC = min(candNum, NumI_t.GetCount(Junc, n))
+				}
+
+				fmt.Printf("candNum = %d, NumI_t.GetCount(Junc, n) = %d\n", candNum, NumI_t.GetCount(Junc, n))
+				fmt.Printf("IC = %s\n", IC.String())
+				fmt.Printf("IC.NumIC_t_IC = %d\n", IC.NumIC_t_IC)
 
 				IC.Append(n)
 				AddNode.Push(n)
