@@ -5,25 +5,6 @@ import (
 	"strings"
 )
 
-// type InvocationChain struct {
-// 	// TODO: help me complete the type and menber functions
-// 	// should have something like slice of strings to save it
-// 	// should have counter like NumIC_t_IC to match the require in ExtICsFromCallGraph
-// 	// should have init function like NewInvocationChain
-// 	// help me make some function for the line "List IC = List.copy(IC, 0, Junc.index);" in ExtICsFromCallGraph
-// 	// need a Append(ms string) function that append to "slice of strings"
-// 	// need a GetTail() function and return some value from "slice of strings"
-// 	// IsEmpty() to check the "slice of strings"
-// }
-//
-// type InvocationChains struct {
-// 	// TODO: help me complete the type and menber functions
-// 	// should have a map that key: InvocationChain, value: Counts like the information in TABLE II
-// 	// should have a new function
-// 	// should have some mechanishm to add two InvocationChains (I'm not using this fuction in trace_analyzer.go
-// 	// but just for future usage)
-// }
-
 // InvocationChain represents an invocation chain as described in the paper.
 // It consists of a sequence of microservices and the minimum occurrence count
 // of its invocations within a specific trace.

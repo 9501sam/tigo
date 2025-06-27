@@ -80,6 +80,12 @@ var services = []string{
 	"redis-cart", "shippingservice",
 }
 
+var Services = []string{
+	"cartservice", "checkoutservice", "currencyservice", "emailservice",
+	"frontend", "paymentservice", "productcatalogservice", "recommendationservice",
+	"redis-cart", "shippingservice",
+}
+
 var traceData TraceData
 var processTimeMap map[string]map[string]int64
 var processTimeCloudMap map[string]map[string]int64
