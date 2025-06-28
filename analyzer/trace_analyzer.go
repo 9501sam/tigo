@@ -94,15 +94,13 @@ func FindAllRoots(invCount InvocationCount) []string {
 
 // / *** ExtICsFromCallGraph *** ///
 // Input: A trace: t; a call graph: G;
-func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
+func ExtICsFromCallGraph(NumI_t InvocationCount) (*InvocationChains, InvocationCount) {
 	stack := utils.NewStack()
 	AddNode := utils.NewStack()
 	CurrentNum := utils.NewStack()
 	InvChains := NewInvocationChains()
-	// root := "frontend"
 	IC := NewInvocationChain()
-	NumI_t := CountInvocationOfOneTrace(t)
-	NumI_t = RemoveNone(NumI_t)
+	newNumI_t := NumI_t.Copy()
 	roots := FindAllRoots(NumI_t)
 	for _, r := range roots {
 		fmt.Printf("r = %s\n", r)
@@ -142,6 +140,7 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 				IC.Append(n)
 				AddNode.Push(n)
 				CurrentNum.Push(IC.NumIC_t_IC)
+				newNumI_t[common.CallKey{From: node.From, To: node.To}] -= IC.NumIC_t_IC
 				fmt.Printf("IC = %s\n", IC.String())
 				fmt.Printf("IC.NumIC_t_IC = %d\n", IC.NumIC_t_IC)
 
@@ -175,19 +174,19 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 				IC.Append(n)
 				AddNode.Push(n)
 				CurrentNum.Push(IC.NumIC_t_IC)
+				newNumI_t[common.CallKey{From: node.From, To: node.To}] -= IC.NumIC_t_IC
 			}
 		}
 
 		// push childs of `n` to the `stack`
 		for _, s := range common.Services {
 			if NumI_t.Exist(n, s) {
-				// stack.Push(s)
 				stack.Push(common.CallKey{From: n, To: s})
 			}
 		}
 	}
 	InvChains.Append(IC)
-	return InvChains
+	return InvChains, newNumI_t
 }
 
 func RunAnalyzer() {
@@ -197,7 +196,10 @@ func RunAnalyzer() {
 	trace := traceData.Data[i]
 	fmt.Printf("--- Processing Trace %d (TraceID: %s) ---\n", i+1, trace.TraceID)
 	// Extract invocation chains from the current trace using the updated algorithm
-	InvChains := ExtICsFromCallGraph(trace)
+	NumI_t := CountInvocationOfOneTrace(trace)
+	NumI_t = RemoveNone(NumI_t)
+
+	InvChains, newNumI_t := ExtICsFromCallGraph(NumI_t)
 
 	// Check if any invocation chains were extracted
 	if len(InvChains.Chains) > 0 {
@@ -210,4 +212,12 @@ func RunAnalyzer() {
 		fmt.Println("No invocation chains extracted for this trace.")
 	}
 	fmt.Println("----------------------------------------")
+	fmt.Println("Before:")
+	for key, count := range NumI_t {
+		fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
+	}
+	fmt.Println("After:")
+	for key, count := range newNumI_t {
+		fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
+	}
 }

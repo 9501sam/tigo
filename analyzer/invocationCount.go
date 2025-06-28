@@ -16,3 +16,12 @@ func (icnt InvocationCount) Exist(from, to string) bool {
 	}
 	return false
 }
+
+func (icnt InvocationCount) Copy() InvocationCount {
+	newMap := make(InvocationCount, len(icnt))
+
+	for key, value := range icnt {
+		newMap[key] = value
+	}
+	return newMap
+}
