@@ -68,7 +68,8 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 	AddNode := utils.NewStack()
 	CurrentNum := utils.NewStack()
 	InvChains := NewInvocationChains()
-	root := "frontend"
+	// root := "frontend"
+	root := common.CallKey{From: "User", To: "frontend"}
 	stack.Push(root)
 	IC := NewInvocationChain()
 	NumI_t := CountInvocationOfOneTrace(t)
@@ -79,7 +80,8 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 	iter := 0
 	for !stack.IsEmpty() {
 		fmt.Println("\n----------------------------------------")
-		n := stack.Pop().(string)
+		node := stack.Pop().(common.CallKey)
+		n := node.To
 		fmt.Printf("Iteration %d start\n", iter)
 		fmt.Printf("n = %s\n", n)
 		fmt.Printf("IC = %s\n", IC.String())
@@ -113,7 +115,13 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 
 				Junc := AddNode.Top().(string)
 				candNum := CurrentNum.Top().(int)
-				for !NumI_t.Exist(Junc, n) {
+				// for !NumI_t.Exist(Junc, n) {
+				// 	AddNode.Pop()
+				// 	CurrentNum.Pop()
+				// 	Junc = AddNode.Top().(string)
+				// 	candNum = CurrentNum.Top().(int)
+				// }
+				for Junc != node.From {
 					AddNode.Pop()
 					CurrentNum.Pop()
 					Junc = AddNode.Top().(string)
@@ -142,10 +150,12 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 		// push childs of `n` to the `stack`
 		for _, s := range common.Services {
 			if NumI_t.Exist(n, s) {
-				stack.Push(s)
+				// stack.Push(s)
+				stack.Push(common.CallKey{From: n, To: s})
 			}
 		}
 	}
+	InvChains.Append(IC)
 	return InvChains
 }
 
