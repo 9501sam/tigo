@@ -61,6 +61,37 @@ func CountInvocationOfOneTrace(trace common.Trace) InvocationCount {
 	return callCount
 }
 
+func RemoveNone(invCount InvocationCount) InvocationCount {
+	newInvCount := make(InvocationCount) // Create a new map for the filtered results
+
+	for key, count := range invCount {
+		// If neither 'From' nor 'To' is "none", keep the entry
+		if key.From != "none" && key.To != "none" {
+			newInvCount[key] = count
+
+		}
+
+	}
+	return newInvCount
+}
+
+func FindAllRoots(invCount InvocationCount) []string {
+	fromNodes := make(map[string]struct{}) // Set of all 'From' entities
+	toNodes := make(map[string]struct{})   // Set of all 'To' entities
+	for k := range invCount {
+		fromNodes[k.From] = struct{}{}
+		toNodes[k.To] = struct{}{}
+	}
+	var roots []string
+	for from := range fromNodes {
+		// If a 'From' node is not present in the 'To' nodes, it's a root
+		if _, exists := toNodes[from]; !exists {
+			roots = append(roots, from)
+		}
+	}
+	return roots
+}
+
 // / *** ExtICsFromCallGraph *** ///
 // Input: A trace: t; a call graph: G;
 func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
@@ -69,10 +100,16 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 	CurrentNum := utils.NewStack()
 	InvChains := NewInvocationChains()
 	// root := "frontend"
-	root := common.CallKey{From: "User", To: "frontend"}
-	stack.Push(root)
 	IC := NewInvocationChain()
 	NumI_t := CountInvocationOfOneTrace(t)
+	NumI_t = RemoveNone(NumI_t)
+	roots := FindAllRoots(NumI_t)
+	for _, r := range roots {
+		fmt.Printf("r = %s\n", r)
+	}
+	root := common.CallKey{From: "none", To: roots[0]}
+	stack.Push(root)
+
 	for key, count := range NumI_t {
 		fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
 	}
@@ -115,12 +152,6 @@ func ExtICsFromCallGraph(t common.Trace) *InvocationChains {
 
 				Junc := AddNode.Top().(string)
 				candNum := CurrentNum.Top().(int)
-				// for !NumI_t.Exist(Junc, n) {
-				// 	AddNode.Pop()
-				// 	CurrentNum.Pop()
-				// 	Junc = AddNode.Top().(string)
-				// 	candNum = CurrentNum.Top().(int)
-				// }
 				for Junc != node.From {
 					AddNode.Pop()
 					CurrentNum.Pop()
