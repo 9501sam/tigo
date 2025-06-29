@@ -194,16 +194,13 @@ func randomSolutionForPS_GWCA() map[string]map[string]int {
 	return solution
 }
 
-/// *** for analyzer *** ///
+// / *** for analyzer *** ///
 type CallKey struct {
 	From string
 	To   string
 }
 
 var G = map[string]map[string]bool{
-	"User": {
-		"frontend": true,
-	},
 	"frontend": {
 		"recommendationservice": true,
 		"productcatalogservice": true,

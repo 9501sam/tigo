@@ -7,6 +7,7 @@ import (
 	"optimizer/utils"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type StackNodeInfo struct {
@@ -37,7 +38,7 @@ func ExportCallCountsToCSV(callCount map[common.CallKey]int, filename string) er
 	return nil
 }
 
-func CountInvocationOfTraces(traceData common.TraceData) map[common.CallKey]int {
+func CountInvocationOfTraces(traceData common.TraceData) InvocationCount {
 	callCount := make(map[common.CallKey]int)
 	for _, trace := range traceData.Data {
 		for _, span := range trace.Spans {
@@ -191,7 +192,7 @@ func ExtICsFromCallGraph(NumI_t InvocationCount) (*InvocationChains, InvocationC
 	return InvChains, newNumI_t
 }
 
-func RunAnalyzer() {
+func getTotalInvChains() *InvocationChains {
 	common.LoadJSONFile("app.json", &traceData)
 
 	totalInvChains := NewInvocationChains()
@@ -239,4 +240,87 @@ func RunAnalyzer() {
 	for chainStr, count := range totalInvChains.Chains {
 		fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
 	}
+
+	return totalInvChains
+}
+
+func DepIC(mi, mj string, InvChains InvocationChains) float64 {
+	Num_mi_mj := 0
+	Num_mi := 0
+	Num_mj := 0
+	Cd_mi := 0.0
+	Cd_mj := 0.0
+	invocationNum := 0
+	invocationMi := 0
+	invocationMj := 0
+
+	for chainStr, count := range InvChains.Chains {
+		mi_flag := strings.Contains(chainStr, mi)
+		mj_flag := strings.Contains(chainStr, mj)
+		if mi_flag {
+			Num_mi += count
+		}
+		if mj_flag {
+			Num_mj += count
+		}
+		if mi_flag && mj_flag {
+			Num_mi_mj += count
+		}
+	}
+
+	NumI_t := CountInvocationOfTraces(traceData)
+	for _, mx := range common.Services {
+		for _, my := range common.Services {
+			invocationNum += NumI_t.GetCount(mx, my)
+		}
+	}
+	for _, mx := range common.Services {
+		invocationMi += NumI_t.GetCount(mi, mx)
+	}
+	for _, mx := range common.Services {
+		invocationMj += NumI_t.GetCount(mj, mx)
+	}
+	Cd_mi = float64(invocationMi) / float64(invocationNum)
+	Cd_mj = float64(invocationMj) / float64(invocationNum)
+
+	// TODO: print all the variable in this function, line by line
+	// like Num_mi_mj = ???
+	// fmt.Println("----------------------------------------")
+	// fmt.Printf("mi = %s, mj = %s\n", mi, mj)
+	// fmt.Printf("Num_mi_mj = %d\n", Num_mi_mj)
+	// fmt.Printf("Num_mi = %d\n", Num_mi)
+	// fmt.Printf("Num_mj = %d\n", Num_mj)
+	// fmt.Printf("Cd_mi = %.6f\n", Cd_mi)
+	// fmt.Printf("Cd_mj = %.6f\n", Cd_mj)
+	// fmt.Printf("invocationNum = %d\n", invocationNum)
+	// fmt.Printf("invocationMi = %d\n", invocationMi)
+	// fmt.Printf("invocationMj = %d\n", invocationMj)
+	// fmt.Println("----------------------------------------")
+
+	return (1/Cd_mi)*(float64(Num_mi_mj)/float64(Num_mi)) + (1/Cd_mj)*(float64(Num_mi_mj)/float64(Num_mj))
+}
+
+func RunAnalyzer() {
+	totalInvChains := getTotalInvChains()
+	fmt.Println("----------------------------------------")
+	for chainStr, count := range totalInvChains.Chains {
+		fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
+	}
+
+	fmt.Println("-----------DepIC--------------------------")
+	for _, mx := range common.Services {
+		for _, my := range common.Services {
+			depIC := DepIC(mx, my, *totalInvChains)
+			fmt.Printf("DepIC(%s, %s) = %f\n", mx, my, depIC)
+		}
+	}
+
+	// fmt.Println("\n-------------------------------------")
+	// depIC := DepIC("frontend", "checkoutservice", *totalInvChains)
+	// fmt.Printf("DepIC(%s, %s) = %f\n", "frontend", "checkoutservice", depIC)
+	// fmt.Println("-------------------------------------")
+	// NumI_t := CountInvocationOfTraces(traceData)
+	// for k, v := range NumI_t {
+	// 	fmt.Printf("%s -> %s: %d\n", k.From, k.To, v)
+	// }
 }
