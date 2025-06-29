@@ -140,7 +140,8 @@ func ExtICsFromCallGraph(NumI_t InvocationCount) (*InvocationChains, InvocationC
 				IC.Append(n)
 				AddNode.Push(n)
 				CurrentNum.Push(IC.NumIC_t_IC)
-				newNumI_t[common.CallKey{From: node.From, To: node.To}] -= IC.NumIC_t_IC
+				// newNumI_t[common.CallKey{From: node.From, To: node.To}] -= IC.NumIC_t_IC
+				newNumI_t.Decrease(common.CallKey{From: node.From, To: node.To}, IC.NumIC_t_IC)
 				fmt.Printf("IC = %s\n", IC.String())
 				fmt.Printf("IC.NumIC_t_IC = %d\n", IC.NumIC_t_IC)
 
@@ -174,7 +175,8 @@ func ExtICsFromCallGraph(NumI_t InvocationCount) (*InvocationChains, InvocationC
 				IC.Append(n)
 				AddNode.Push(n)
 				CurrentNum.Push(IC.NumIC_t_IC)
-				newNumI_t[common.CallKey{From: node.From, To: node.To}] -= IC.NumIC_t_IC
+				// newNumI_t[common.CallKey{From: node.From, To: node.To}] -= IC.NumIC_t_IC
+				newNumI_t.Decrease(common.CallKey{From: node.From, To: node.To}, IC.NumIC_t_IC)
 			}
 		}
 
@@ -192,32 +194,49 @@ func ExtICsFromCallGraph(NumI_t InvocationCount) (*InvocationChains, InvocationC
 func RunAnalyzer() {
 	common.LoadJSONFile("app.json", &traceData)
 
-	i := 1
-	trace := traceData.Data[i]
-	fmt.Printf("--- Processing Trace %d (TraceID: %s) ---\n", i+1, trace.TraceID)
-	// Extract invocation chains from the current trace using the updated algorithm
-	NumI_t := CountInvocationOfOneTrace(trace)
-	NumI_t = RemoveNone(NumI_t)
+	totalInvChains := NewInvocationChains()
+	for i, trace := range traceData.Data {
+		fmt.Printf("--- Processing Trace %d (TraceID: %s) ---\n", i+1, trace.TraceID)
+		// Extract invocation chains from the current trace using the updated algorithm
+		NumI_t := CountInvocationOfOneTrace(trace)
+		NumI_t = RemoveNone(NumI_t)
 
-	InvChains, newNumI_t := ExtICsFromCallGraph(NumI_t)
+		InvChains := NewInvocationChains()
+		for len(NumI_t) > 0 {
+			tmpInvChains, newNumI_t := ExtICsFromCallGraph(NumI_t)
 
-	// Check if any invocation chains were extracted
-	if len(InvChains.Chains) > 0 {
-		fmt.Println("Extracted Invocation Chains for this trace:")
-		// Iterate through the map of invocation chains and their total occurrences
+			// Check if any invocation chains were extracted
+			if len(tmpInvChains.Chains) > 0 {
+				fmt.Println("Extracted Invocation Chains for this trace:")
+				// Iterate through the map of invocation chains and their total occurrences
+				for chainStr, count := range tmpInvChains.Chains {
+					fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
+				}
+			} else {
+				fmt.Println("No invocation chains extracted for this trace.")
+			}
+			fmt.Println("----------------------------------------")
+			fmt.Println("Before:")
+			for key, count := range NumI_t {
+				fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
+			}
+			fmt.Println("After:")
+			for key, count := range newNumI_t {
+				fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
+			}
+
+			InvChains.Add(tmpInvChains)
+			NumI_t = newNumI_t
+		}
+
+		fmt.Println("----------------------------------------")
 		for chainStr, count := range InvChains.Chains {
 			fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
 		}
-	} else {
-		fmt.Println("No invocation chains extracted for this trace.")
+		totalInvChains.Add(InvChains)
 	}
 	fmt.Println("----------------------------------------")
-	fmt.Println("Before:")
-	for key, count := range NumI_t {
-		fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
-	}
-	fmt.Println("After:")
-	for key, count := range newNumI_t {
-		fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
+	for chainStr, count := range totalInvChains.Chains {
+		fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
 	}
 }

@@ -25,3 +25,11 @@ func (icnt InvocationCount) Copy() InvocationCount {
 	}
 	return newMap
 }
+
+// newNumI_t[common.CallKey{From: node.From, To: node.To}] -= IC.NumIC_t_IC
+func (icnt InvocationCount) Decrease(key common.CallKey, val int) {
+	icnt[key] -= val
+	if icnt[key] <= 0 {
+		delete(icnt, key)
+	}
+}
