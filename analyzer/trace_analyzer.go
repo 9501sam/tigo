@@ -3,6 +3,7 @@ package analyzer
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"optimizer/common"
 	"optimizer/utils"
 	"os"
@@ -299,6 +300,60 @@ func DepIC(mi, mj string, InvChains InvocationChains) float64 {
 	return (1/(Cd_mi+epslon))*(float64(Num_mi_mj)/float64(Num_mi)) + (1/(Cd_mj+epslon))*(float64(Num_mi_mj)/float64(Num_mj))
 }
 
+// LoadDepICsFromCSV 函數從 CSV 文件讀取數據並返回 map[common.CallKey]float64
+func LoadDepICsFromCSV(filename string) (map[common.CallKey]float64, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open CSV file: %w", err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+
+	// 讀取並跳過標頭行
+	_, err = reader.Read()
+	if err != nil {
+		if err == io.EOF {
+			return nil, fmt.Errorf("CSV file is empty or only contains header: %w", err)
+		}
+		return nil, fmt.Errorf("failed to read CSV header: %w", err)
+	}
+
+	depICs := make(map[common.CallKey]float64)
+
+	// 逐行讀取數據
+	for {
+		record, err := reader.Read()
+		if err != nil {
+			if err == io.EOF {
+				break // 讀取到文件末尾
+			}
+			return nil, fmt.Errorf("failed to read CSV record: %w", err)
+		}
+
+		// 檢查記錄的列數是否正確
+		if len(record) != 3 {
+			return nil, fmt.Errorf("invalid record format: expected 3 columns, got %d for record %v", len(record), record)
+		}
+
+		// 解析 'from' 和 'to' 服務名稱
+		fromService := record[0]
+		toService := record[1]
+
+		// 解析 'DepIC_Value' 為 float64
+		depICValue, err := strconv.ParseFloat(record[2], 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse DepIC_Value '%s' to float64: %w", record[2], err)
+		}
+
+		// 將解析後的數據存入 map
+		key := common.CallKey{From: fromService, To: toService}
+		depICs[key] = depICValue
+	}
+
+	return depICs, nil
+}
+
 func ExportDepICsToCSV(DepICs map[common.CallKey]float64, filename string) error {
 	file, err := os.Create(filename)
 	if err != nil {
@@ -333,7 +388,6 @@ func GenerateAndSaveDepICs() {
 		}
 	}
 
-	// ExportCallCountsToCSV(DepICs, "depICs.csv")
 	err := ExportDepICsToCSV(DepICs, "depICs.csv")
 	if err != nil {
 		fmt.Printf("Error exporting DepICs to CSV: %v\n", err)

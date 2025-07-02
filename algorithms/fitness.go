@@ -1,8 +1,9 @@
-package main
+package algorithms
 
 import (
 	"fmt"
 	"log"
+	"optimizer/common"
 )
 
 func CalculateProbability(deploymentConfig map[string]map[string]int, targetHost string) map[string]float64 {
@@ -39,9 +40,9 @@ func CalculateProbability(deploymentConfig map[string]map[string]int, targetHost
 }
 
 // should input 1. app(TraceData) 2. deploymentConfig, 3. processing time 4. processing time on cloud
-func fitness(traceData *TraceData, deploymentConfig map[string]map[string]int,
+func fitness(traceData *common.TraceData, deploymentConfig map[string]map[string]int,
 	processTimeMap map[string]map[string]int64, processTimeCloudMap map[string]map[string]int64,
-	probC map[string]float64, callCounts map[CallKey]int) float64 {
+	probC map[string]float64, heatmap map[common.CallKey]float64) float64 {
 	for i := range traceData.Data {
 		var predictDuration float64 = 0
 
@@ -76,14 +77,14 @@ func fitness(traceData *TraceData, deploymentConfig map[string]map[string]int,
 		// Finally
 		traceData.Data[i].PredictedDuration = int64(predictDuration)
 	}
-	calculateAverageDuration(traceData)
+	common.CalculateAverageDuration(traceData)
 
 	// TODO: leverage the heatmap part
 	heatmapScore := 0.0
-	for k, v := range callCounts {
+	for k, v := range heatmap {
 		// fmt.Printf("%s -> %s: %d times\n", k.From, k.To, v)
 		prob := 0.0
-		for _, node := range nodes {
+		for _, node := range common.Nodes {
 			r := CalculateProbability(deploymentConfig, node)
 			prob += r[k.From] * r[k.To]
 		}

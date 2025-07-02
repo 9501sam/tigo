@@ -1,9 +1,10 @@
-package main
+package utils
 
 import (
 	"context"
 	"fmt"
 	"log"
+	"optimizer/common"
 	"os"
 
 	// appsv1 "k8s.io/api/apps/v1"
@@ -57,7 +58,7 @@ func renameDeployments() {
 		if !targetDeployments[originalName] {
 			continue // 忽略不在指定清單內的 Deployment
 		}
-		for _, node := range nodes {
+		for _, node := range common.Nodes {
 			newDeploy := deploy.DeepCopy()
 			newDeploy.Name = fmt.Sprintf("%s-%s", originalName, node)
 			newDeploy.Spec.Template.Spec.NodeSelector = map[string]string{"kubernetes.io/hostname": node}
@@ -96,7 +97,7 @@ func UpDateDeploymentsByJSON(filename string) {
 	}
 
 	var deploymentConfig map[string]map[string]int
-	if err := loadJSONFile(filename, &deploymentConfig); err != nil {
+	if err := common.LoadJSONFile(filename, &deploymentConfig); err != nil {
 		fmt.Println("Error loading path_durations.json:", err)
 		return
 	}

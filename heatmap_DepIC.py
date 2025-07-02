@@ -42,8 +42,8 @@ sns.heatmap(pivot,
             cbar_kws={'label': 'DepIC Value'}) # 顏色條標籤
 
 plt.title("Service-to-Service DepIC Heatmap", fontsize=16) # 調整標題字體大小
-plt.ylabel("Base Service (From)", fontsize=12) # 調整 Y 軸標籤字體大小
-plt.xlabel("Dependent Service (To)", fontsize=12) # 調整 X 軸標籤字體大小
+plt.ylabel("Caller Service (From)", fontsize=12) # 調整 Y 軸標籤字體大小
+plt.xlabel("Callee Service (To)", fontsize=12) # 調整 X 軸標籤字體大小
 
 plt.xticks(rotation=45, ha='right', fontsize=10) # 旋轉 x 軸標籤，使其更易讀，調整字體大小
 plt.yticks(rotation=0, fontsize=10)   # 確保 y 軸標籤水平，調整字體大小

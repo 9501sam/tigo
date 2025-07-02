@@ -1,62 +1,73 @@
-package main
+package algorithms
 
 import (
 	"encoding/csv"
 	"fmt"
 	"math/rand"
+	"optimizer/analyzer"
+	"optimizer/common"
 	"os"
 	"strconv"
 	"time"
 )
 
 type DPSO struct {
-	Particles    []Particle
+	Particles    []common.Particle
 	BestSolution map[string]map[string]int
 	BestScore    float64
 	NumParticles int
 	MaxIter      int
 }
 
+var heatmap map[common.CallKey]float64
+var traceData common.TraceData
+var serviceConstraints common.ResourceConstraints
+var nodeConstraints common.NodeConstraints
+
+var processTimeMap map[string]map[string]int64
+var processTimeCloudMap map[string]map[string]int64
+
 func Init() {
-	loadJSONFile("app.json", &traceData)
-	loadJSONFile("resources_services.json", &serviceConstraints)
-	loadJSONFile("resources_nodes.json", &nodeConstraints)
+	common.LoadJSONFile("app.json", &traceData)
+	common.LoadJSONFile("resources_services.json", &serviceConstraints)
+	common.LoadJSONFile("resources_nodes.json", &nodeConstraints)
 
-	loadJSONFile("processing_time_edge.json", &processTimeMap)
-	loadJSONFile("processing_time_cloud.json", &processTimeCloudMap)
+	common.LoadJSONFile("processing_time_edge.json", &processTimeMap)
+	common.LoadJSONFile("processing_time_cloud.json", &processTimeCloudMap)
 
-	callCounts = CountServiceCalls(traceData)
+	// callCounts = CountServiceCalls(traceData)
+	heatmap, _ = analyzer.LoadDepICsFromCSV("depICs.csv")
 }
 
 func NewDPSO(numParticles, maxIter int) *DPSO {
 	rand.Seed(time.Now().UnixNano())
-	particles := make([]Particle, numParticles)
+	particles := make([]common.Particle, numParticles)
 	bestSolution := make(map[string]map[string]int)
-	for _, node := range nodes {
+	for _, node := range common.Nodes {
 		bestSolution[node] = make(map[string]int)
-		for _, service := range services {
+		for _, service := range common.Services {
 			bestSolution[node][service] = 0
 		}
 	}
 	bestScore := -1.0
 
 	for i := range particles {
-		particles[i] = Particle{
+		particles[i] = common.Particle{
 			Solution:     randomSolution(),
 			Velocity:     makeVelocity(),
 			BestSolution: make(map[string]map[string]int),
 			BestScore:    -1.0,
 		}
 		// Initialize BestSolution maps
-		for _, node := range nodes {
+		for _, node := range common.Nodes {
 			particles[i].BestSolution[node] = make(map[string]int)
 		}
-		copySolution(particles[i].BestSolution, particles[i].Solution)
+		common.CopySolution(particles[i].BestSolution, particles[i].Solution)
 		score := evaluate(particles[i].Solution)
 		particles[i].BestScore = score
 		if score > bestScore {
 			bestScore = score
-			copySolution(bestSolution, particles[i].Solution)
+			common.CopySolution(bestSolution, particles[i].Solution)
 		}
 	}
 
@@ -108,8 +119,8 @@ func (dpso *DPSO) Optimize() {
 		fmt.Printf("\nIteration %d start!!!\n", iter)
 		for i := range dpso.Particles {
 			p := &dpso.Particles[i]
-			for _, node := range nodes {
-				for _, service := range services {
+			for _, node := range common.Nodes {
+				for _, service := range common.Services {
 					r1, r2 := rand.Float64(), rand.Float64()
 					p.Velocity[node][service] = w*p.Velocity[node][service] +
 						c1*r1*float64(p.BestSolution[node][service]-p.Solution[node][service]) +
@@ -135,11 +146,11 @@ func (dpso *DPSO) Optimize() {
 			score := evaluate(p.Solution)
 			if score < p.BestScore {
 				p.BestScore = score
-				copySolution(p.BestSolution, p.Solution)
+				common.CopySolution(p.BestSolution, p.Solution)
 			}
 			if score < dpso.BestScore {
 				dpso.BestScore = score
-				copySolution(dpso.BestSolution, p.Solution)
+				common.CopySolution(dpso.BestSolution, p.Solution)
 			}
 		}
 		fmt.Printf("Iteration %d: Best Score = %f, BestSolution till this iteration be like: \n", iter, dpso.BestScore)
@@ -151,7 +162,7 @@ func (dpso *DPSO) Optimize() {
 		}
 		writer.Flush() // Flush after each write to ensure data is written immediately
 		if iter == dpso.MaxIter-1 {
-			printJSON(dpso.BestSolution, "")
+			common.PrintJSON(dpso.BestSolution, "")
 		}
 		fmt.Println("-----------------------------------------")
 	}
@@ -159,12 +170,12 @@ func (dpso *DPSO) Optimize() {
 
 func randomSolution() map[string]map[string]int {
 	solution := make(map[string]map[string]int)
-	for _, node := range nodes {
+	for _, node := range common.Nodes {
 		solution[node] = make(map[string]int)
 	}
 
-	for _, service := range services {
-		selectedNode := nodes[rand.Intn(4)]
+	for _, service := range common.Services {
+		selectedNode := common.Nodes[rand.Intn(4)]
 		solution[selectedNode][service] = 1
 	}
 	return solution
@@ -172,9 +183,9 @@ func randomSolution() map[string]map[string]int {
 
 func makeVelocity() map[string]map[string]float64 {
 	velocity := make(map[string]map[string]float64)
-	for _, node := range nodes {
+	for _, node := range common.Nodes {
 		velocity[node] = make(map[string]float64)
-		for _, service := range services {
+		for _, service := range common.Services {
 			velocity[node][service] = 0.0
 		}
 	}
@@ -183,9 +194,12 @@ func makeVelocity() map[string]map[string]float64 {
 
 func checkConstraints(solution map[string]map[string]int) bool {
 	// fmt.Println("enter checkConstraints()")
-	// printJSON(solution, "")
+	// common.PrintJSON(solution, "")
+	if solution["asus"]["frontend"] > 0 {
+		return false
+	}
 
-	for _, node := range nodes {
+	for _, node := range common.Nodes {
 		for _, services := range solution {
 			totalCPU := 0
 			totalMemory := 0
@@ -222,7 +236,7 @@ func evaluate(solution map[string]map[string]int) float64 {
 	probC := CalculateProbability(solution, "asus")
 
 	// fmt.Printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-	// printJSON(probC, "")
+	// common.PrintJSON(probC, "")
 	if !checkConstraints(solution) {
 		return 999999999 // big number as penalty (means very slow)
 	}
@@ -235,7 +249,15 @@ func evaluate(solution map[string]map[string]int) float64 {
 
 	// return 0.0
 
-	var T = fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC, callCounts)
+	// this is for call count heatmap
+	// var T = fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC, callCounts)
+	// if T < 0 {
+	// 	fmt.Errorf("fitness() should not return negative value")
+	// }
+
+	// this is for depIC heatmap
+
+	var T = fitness(&traceData, solution, processTimeMap, processTimeCloudMap, probC, heatmap)
 	if T < 0 {
 		fmt.Errorf("fitness() should not return negative value")
 	}
@@ -259,7 +281,7 @@ func RunDPSO() {
 	fmt.Println("enter Optimize()!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	dpso.Optimize()
 
-	printJSON(dpso.BestSolution, "dpso_solution.json")
+	common.PrintJSON(dpso.BestSolution, "dpso_dep_solution_version2.json")
 	elapsed := time.Since(start) // 計算花費時間
 	fmt.Printf("execution time(dpso): %s\n\n", elapsed)
 	// UpDateDeploymentsByJSON("dpso_solution.json")

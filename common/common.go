@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-var nodes = []string{"vm1", "vm2", "vm3", "asus"}
+var Nodes = []string{"vm1", "vm2", "vm3", "asus"}
 
 // Span represents a span within a trace, used in both Spans and spanMap.
 type Span struct {
@@ -103,7 +103,7 @@ type NodeConstraints map[string]Constraints
 var serviceConstraints ResourceConstraints
 var nodeConstraints NodeConstraints
 
-func copySolution(dst, src map[string]map[string]int) {
+func CopySolution(dst, src map[string]map[string]int) {
 	for node := range src {
 		for service, value := range src[node] {
 			dst[node][service] = value
@@ -159,9 +159,29 @@ func sumServiceInstances(filename string) {
 	PrintJSON(serviceTotals, "")
 }
 
+func CalculateAverageDuration(traceData *TraceData) *TraceData {
+	var totalDuration int64
+	var totalPredictedDuration int64
+	var count int64
+	for _, trace := range traceData.Data {
+		totalDuration += trace.Duration
+		totalPredictedDuration += trace.PredictedDuration
+		count++
+	}
+	if count > 0 {
+		avgDuration := (totalDuration / count) / 1000
+		avgPredictedDuration := (totalPredictedDuration / count) / 1000
+		traceData.AverageDuration = avgDuration
+		traceData.AveragePredictedDuration = avgPredictedDuration
+	} else {
+		fmt.Println("No data available to calculate averages.")
+	}
+	return traceData
+}
+
 func randomSolutionForPS_GWCA() map[string]map[string]int {
 	solution := make(map[string]map[string]int)
-	for _, node := range nodes {
+	for _, node := range Nodes {
 		solution[node] = make(map[string]int)
 		for _, service := range services {
 			solution[node][service] = 0
@@ -186,7 +206,7 @@ func randomSolutionForPS_GWCA() map[string]map[string]int {
 
 		// Randomly distribute the instances across nodes
 		for i := 0; i < totalInstances; i++ {
-			selectedNode := nodes[rand.Intn(len(nodes))]
+			selectedNode := Nodes[rand.Intn(len(Nodes))]
 			solution[selectedNode][service]++
 		}
 	}
