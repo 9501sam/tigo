@@ -206,40 +206,40 @@ func getTotalInvChains() *InvocationChains {
 		for len(NumI_t) > 0 {
 			tmpInvChains, newNumI_t := ExtICsFromCallGraph(NumI_t)
 
-			// Check if any invocation chains were extracted
-			if len(tmpInvChains.Chains) > 0 {
-				fmt.Println("Extracted Invocation Chains for this trace:")
-				// Iterate through the map of invocation chains and their total occurrences
-				for chainStr, count := range tmpInvChains.Chains {
-					fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
-				}
-			} else {
-				fmt.Println("No invocation chains extracted for this trace.")
-			}
-			fmt.Println("----------------------------------------")
-			fmt.Println("Before:")
-			for key, count := range NumI_t {
-				fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
-			}
-			fmt.Println("After:")
-			for key, count := range newNumI_t {
-				fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
-			}
+			// // Check if any invocation chains were extracted
+			// if len(tmpInvChains.Chains) > 0 {
+			// 	fmt.Println("Extracted Invocation Chains for this trace:")
+			// 	// Iterate through the map of invocation chains and their total occurrences
+			// 	for chainStr, count := range tmpInvChains.Chains {
+			// 		fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
+			// 	}
+			// } else {
+			// 	fmt.Println("No invocation chains extracted for this trace.")
+			// }
+			// fmt.Println("----------------------------------------")
+			// fmt.Println("Before:")
+			// for key, count := range NumI_t {
+			// 	fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
+			// }
+			// fmt.Println("After:")
+			// for key, count := range newNumI_t {
+			// 	fmt.Printf("From: %s, To: %s, Count: %d\n", key.From, key.To, count)
+			// }
 
 			InvChains.Add(tmpInvChains)
 			NumI_t = newNumI_t
 		}
 
-		fmt.Println("----------------------------------------")
+		fmt.Printf("--- InvChains for Trace %d (TraceID: %s) ---\n", i+1, trace.TraceID)
 		for chainStr, count := range InvChains.Chains {
 			fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
 		}
 		totalInvChains.Add(InvChains)
 	}
-	fmt.Println("----------------------------------------")
-	for chainStr, count := range totalInvChains.Chains {
-		fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
-	}
+	// fmt.Println("----------------------------------------")
+	// for chainStr, count := range totalInvChains.Chains {
+	// 	fmt.Printf("  Chain: %s, Occurrences: %d\n", chainStr, count)
+	// }
 
 	return totalInvChains
 }
@@ -283,8 +283,6 @@ func DepIC(mi, mj string, InvChains InvocationChains) float64 {
 	Cd_mi = float64(invocationMi) / float64(invocationNum)
 	Cd_mj = float64(invocationMj) / float64(invocationNum)
 
-	// TODO: print all the variable in this function, line by line
-	// like Num_mi_mj = ???
 	// fmt.Println("----------------------------------------")
 	// fmt.Printf("mi = %s, mj = %s\n", mi, mj)
 	// fmt.Printf("Num_mi_mj = %d\n", Num_mi_mj)
@@ -297,7 +295,51 @@ func DepIC(mi, mj string, InvChains InvocationChains) float64 {
 	// fmt.Printf("invocationMj = %d\n", invocationMj)
 	// fmt.Println("----------------------------------------")
 
-	return (1/Cd_mi)*(float64(Num_mi_mj)/float64(Num_mi)) + (1/Cd_mj)*(float64(Num_mi_mj)/float64(Num_mj))
+	epslon := 1.0
+	return (1/(Cd_mi+epslon))*(float64(Num_mi_mj)/float64(Num_mi)) + (1/(Cd_mj+epslon))*(float64(Num_mi_mj)/float64(Num_mj))
+}
+
+func ExportDepICsToCSV(DepICs map[common.CallKey]float64, filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+	// Write header
+	writer.Write([]string{"from", "to", "DepIC_Value"})
+
+	for k, v := range DepICs {
+		// writer.Write([]string{k.From, k.To, strconv.Itoa(v)}) // TODO: should not use Itoa cause it's float64
+		depICStr := strconv.FormatFloat(v, 'f', -1, 64)
+		writer.Write([]string{k.From, k.To, depICStr})
+	}
+	return nil
+}
+
+func GenerateAndSaveDepICs() {
+	totalInvChains := getTotalInvChains()
+	DepICs := make(map[common.CallKey]float64)
+	for _, mx := range common.Services {
+		for _, my := range common.Services {
+			depIC := 0.0
+			if mx != my {
+				depIC = DepIC(mx, my, *totalInvChains)
+			}
+			DepICs[common.CallKey{From: mx, To: my}] = depIC
+			// fmt.Printf("DepIC(%s, %s) = %f\n", mx, my, depIC)
+		}
+	}
+
+	// ExportCallCountsToCSV(DepICs, "depICs.csv")
+	err := ExportDepICsToCSV(DepICs, "depICs.csv")
+	if err != nil {
+		fmt.Printf("Error exporting DepICs to CSV: %v\n", err)
+	} else {
+		fmt.Println("DepICs data successfully exported to depICs.csv")
+	}
 }
 
 func RunAnalyzer() {
@@ -315,12 +357,9 @@ func RunAnalyzer() {
 		}
 	}
 
-	// fmt.Println("\n-------------------------------------")
-	// depIC := DepIC("frontend", "checkoutservice", *totalInvChains)
-	// fmt.Printf("DepIC(%s, %s) = %f\n", "frontend", "checkoutservice", depIC)
-	// fmt.Println("-------------------------------------")
-	// NumI_t := CountInvocationOfTraces(traceData)
-	// for k, v := range NumI_t {
-	// 	fmt.Printf("%s -> %s: %d\n", k.From, k.To, v)
-	// }
+	GenerateAndSaveDepICs()
+
+	// fmt.Println("-----------DepIC--------------------------")
+	// depIC := DepIC("checkoutservice", "emailservice", *totalInvChains)
+	// fmt.Printf("DepIC(%s, %s) = %f\n", "checkoutservice", "emailservice", depIC)
 }

@@ -56,7 +56,7 @@ func LoadJSONFile[T any](filename string, target *T) error {
 	return decoder.Decode(target)
 }
 
-func printJSON(data interface{}, fileName string) {
+func PrintJSON(data interface{}, fileName string) {
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		fmt.Println("Error marshalling JSON:", err)
@@ -156,7 +156,7 @@ func sumServiceInstances(filename string) {
 			serviceTotals[serviceName] += instances
 		}
 	}
-	printJSON(serviceTotals, "")
+	PrintJSON(serviceTotals, "")
 }
 
 func randomSolutionForPS_GWCA() map[string]map[string]int {
