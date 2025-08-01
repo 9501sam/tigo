@@ -1,0 +1,50 @@
+{
+  "asus": {
+    "cartservice": 2,
+    "checkoutservice": 1,
+    "currencyservice": 2,
+    "emailservice": 1,
+    "frontend": 0,
+    "paymentservice": 1,
+    "productcatalogservice": 2,
+    "recommendationservice": 3,
+    "redis-cart": 2,
+    "shippingservice": 2
+  },
+  "vm1": {
+    "cartservice": 1,
+    "checkoutservice": 0,
+    "currencyservice": 1,
+    "emailservice": 2,
+    "frontend": 2,
+    "paymentservice": 2,
+    "productcatalogservice": 3,
+    "recommendationservice": 2,
+    "redis-cart": 3,
+    "shippingservice": 2
+  },
+  "vm2": {
+    "cartservice": 0,
+    "checkoutservice": 3,
+    "currencyservice": 3,
+    "emailservice": 2,
+    "frontend": 2,
+    "paymentservice": 2,
+    "productcatalogservice": 1,
+    "recommendationservice": 2,
+    "redis-cart": 2,
+    "shippingservice": 1
+  },
+  "vm3": {
+    "cartservice": 0,
+    "checkoutservice": 3,
+    "currencyservice": 2,
+    "emailservice": 3,
+    "frontend": 2,
+    "paymentservice": 2,
+    "productcatalogservice": 2,
+    "recommendationservice": 2,
+    "redis-cart": 1,
+    "shippingservice": 1
+  }
+}
