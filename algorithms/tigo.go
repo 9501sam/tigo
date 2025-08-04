@@ -1,7 +1,8 @@
-package main
+package algorithms
 
 import (
 	"fmt"
+	"optimizer/common"
 	"time"
 )
 
@@ -10,11 +11,11 @@ type Solution map[string]map[string]int // Solution[node][service] = <replica>
 // var traceData TraceData
 
 func InitTIGO() {
-	loadJSONFile("app.json", &traceData)
-	loadJSONFile("resources_services.json", &serviceConstraints)
-	loadJSONFile("resources_nodes.json", &nodeConstraints)
-	loadJSONFile("processing_time_edge.json", &processTimeMap)
-	loadJSONFile("processing_time_cloud.json", &processTimeCloudMap)
+	common.LoadJSONFile("app.json", &traceData)
+	common.LoadJSONFile("resources_services.json", &serviceConstraints)
+	common.LoadJSONFile("resources_common.Nodes.json", &nodeConstraints)
+	common.LoadJSONFile("processing_time_edge.json", &processTimeMap)
+	common.LoadJSONFile("processing_time_cloud.json", &processTimeCloudMap)
 }
 
 // 初始化路由
@@ -25,7 +26,7 @@ func initRouting() ([]int, int) {
 
 func CopySolution(original Solution) Solution {
 	copy := make(Solution)
-	for _, node := range nodes {
+	for _, node := range common.Nodes {
 		copy[node] = make(map[string]int)
 	}
 
@@ -56,7 +57,7 @@ func cloudExecSchemeImprove(solution Solution, BS int) []Solution {
 					onCloudServices = append(onCloudServices, traceData.Data[i].Spans[t].ServiceName)
 				}
 
-				for _, service := range services {
+				for _, service := range common.Services {
 					tempSolution["asus"][service] = 0
 				}
 
@@ -103,8 +104,8 @@ func bestServer(solution Solution, service string) (string, int64) {
 		remaining[e] = int64(nodeConstraints[e].CPU)
 	}
 
-	for _, node := range nodes {
-		for _, service := range services {
+	for _, node := range common.Nodes {
+		for _, service := range common.Services {
 			remaining[node] += -(int64(solution[node][service]) * int64(serviceConstraints[service].CPU))
 		}
 	}
@@ -124,7 +125,7 @@ func bestServer(solution Solution, service string) (string, int64) {
 func edgeReplacement(solution Solution) Solution {
 	retSolution := CopySolution(solution)
 
-	for _, service := range services {
+	for _, service := range common.Services {
 		needed := calculateNeeded(service) // TODO: calculateNeeded
 		deployed := 0
 		var prevBestS string
@@ -176,10 +177,9 @@ func tigo(BS int) Solution {
 			fmt.Printf("len(nextSls) = %d\n", len(nextSls))
 			for i, s := range nextSls {
 				fmt.Printf("\n\nnextSls[%d]: \n", i)
-				printJSON(s, "")
+				common.PrintJSON(s, "")
 			}
-			printJSON(nextSls[len(nextSls)-1], "")
-			// TODO: SORT HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			common.PrintJSON(nextSls[len(nextSls)-1], "")
 			if len(nextSls) > BS {
 				nextSls = nextSls[:BS]
 			}
@@ -190,10 +190,9 @@ func tigo(BS int) Solution {
 	fmt.Printf("len(SLs) = %d\n", len(SLs))
 	for i, s := range SLs {
 		fmt.Printf("\n\nSLs[%d]: \n", i)
-		printJSON(s, "")
+		common.PrintJSON(s, "")
 	}
 
-	// TODO: SORT HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	return SLs[4]
 }
 
@@ -203,9 +202,9 @@ func RunTIGO() {
 	BS := 5 // Branch Search Size
 	bestSolution := tigo(BS)
 	fmt.Println("Best Solution:")
-	printJSON(bestSolution, "")
+	common.PrintJSON(bestSolution, "")
 	elapsed := time.Since(start) // 計算花費時間
 	fmt.Printf("execution time(tigo): %s\n\n", elapsed)
-	// printJSON(bestSolution, "tigo_solution2.json")
+	// common.PrintJSON(bestSolution, "tigo_solution2.json")
 	// UpDateDeploymentsByJSON("tigo_solution2.json")
 }
